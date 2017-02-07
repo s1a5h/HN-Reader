@@ -30,7 +30,6 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var titleText: TextView
         var dateText: TextView
-        lateinit var id: String
 
         init {
             titleText = itemView.findViewById(R.id.title_text) as TextView
@@ -43,13 +42,12 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
         }
 
         private fun displayData(article: Article) {
-            id = article.id
             titleText.setText(article.title)
 
-            println(article.time)
             var date = Date()
             date.time = article.time
-            dateText.setText(parser.format(date))
+//            dateText.setText(parser.format(date))
+            dateText.setText(article.id)
         }
 
         private fun parse(article: Article, response: String) {
@@ -72,7 +70,10 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
 
                 override fun onPostExecute(result: Unit?) {
                     super.onPostExecute(result)
-                    displayData(article)
+                    val currentIndex = adapterPosition
+                    if (currentIndex < 0 || article.id.equals(articles.get(currentIndex).id)) {
+                        displayData(article)
+                    }
                 }
             }
             parser.execute()
@@ -85,7 +86,8 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
             queue.add(request)
         }
 
-        fun populate(article: Article) {
+        fun populate(index: Int) {
+            val article = articles.get(index)
             displayData(article)
             if (!article.isProcessed) {
                 downloadData(article)
@@ -110,7 +112,7 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
     }
 
     override fun onBindViewHolder(holder: ViewHolder?, position: Int) {
-        holder?.populate(articles.get(position));
+        holder?.populate(position);
     }
 
     override fun getItemCount(): Int {

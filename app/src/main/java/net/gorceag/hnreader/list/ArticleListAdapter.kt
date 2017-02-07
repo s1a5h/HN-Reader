@@ -17,6 +17,8 @@ import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.google.gson.Gson
 import net.gorceag.hnreader.MainActivity
+import java.text.SimpleDateFormat
+import java.util.*
 
 
 /**
@@ -27,10 +29,12 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var titleText: TextView
+        var dateText: TextView
         lateinit var id: String
 
         init {
             titleText = itemView.findViewById(R.id.title_text) as TextView
+            dateText = itemView.findViewById(R.id.date_text) as TextView
             itemView.setOnClickListener {
                 val article = articles.get(adapterPosition)
                 if (article.isProcessed && !article.url.equals("")) {
@@ -41,6 +45,11 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
         private fun displayData(article: Article) {
             id = article.id
             titleText.setText(article.title)
+
+            println(article.time)
+            var date = Date()
+            date.time = article.time
+            dateText.setText(parser.format(date))
         }
 
         private fun parse(article: Article, response: String) {
@@ -50,6 +59,7 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
             if (parsedArticle.url != null) {
                 article.url = parsedArticle.url
             }
+            article.time = parsedArticle.time
             article.isProcessed = true
         }
 
@@ -84,6 +94,7 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
     }
 
     val queue = Volley.newRequestQueue(context)
+    var parser = SimpleDateFormat("HH:mm:ss dd-MMM-yyyy")
 
     override fun onCreateViewHolder(parent: ViewGroup?, viewType: Int): ViewHolder {
         var context: Context = this.context

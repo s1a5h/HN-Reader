@@ -8,4 +8,5 @@ class Article(val id: String) {
     var isProcessed = false
     var title: String = ""
     var url: String = ""
+    var time: Long = 0
 }

@@ -3,4 +3,9 @@
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
     <dimen name="fab_margin">16dp</dimen>
+
+    <!-- graph parameters -->
+    <dimen name="text_size">16dp</dimen>
+    <dimen name="padding">20dp</dimen>
+    <dimen name="text_to_line_margin">5dp</dimen>
 </resources>

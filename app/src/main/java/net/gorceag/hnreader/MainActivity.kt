@@ -11,6 +11,8 @@ import android.view.Menu
 import android.view.MenuItem
 import android.webkit.WebViewFragment
 import net.gorceag.hnreader.model.Article
+import net.gorceag.hnreader.model.ArticleSummary
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,7 +34,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showGraph() {
-        val fragment = GraphFragment()
+        val summary = ArrayList<ArticleSummary>()
+        summary.add(ArticleSummary(10, 330))
+        summary.add(ArticleSummary(14, 300))
+        summary.add(ArticleSummary(28, 50))
+        val fragment = GraphFragment(summary)
         val fragmentManager = fragmentManager
         fragmentManager.beginTransaction()
                 .replace(R.id.graph_container, fragment, "Graph")

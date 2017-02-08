@@ -23,7 +23,7 @@ class GraphFragment(val data: List<ArticleSummary>) : Fragment() {
         val map = LinkedHashMap<Int, Int>()
         map.put(80, 300)
         map.put(88, 340)
-        map.put(3, 20)
+        map.put(300, 2001)
         map.put(24, 100)
         return map
     }

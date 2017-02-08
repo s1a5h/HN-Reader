@@ -3,8 +3,23 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="net.gorceag.hnreader.MainActivity">
     <item
-        android:id="@+id/action_settings"
+        android:id="@+id/action_add"
         android:orderInCategory="100"
-        android:title="@string/action_settings"
+        android:title="@string/action_add"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_remove"
+        android:orderInCategory="100"
+        android:title="@string/action_remove"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_clear_visited"
+        android:orderInCategory="100"
+        android:title="@string/action_clear_visited"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_clear_favorites"
+        android:orderInCategory="100"
+        android:title="@string/action_clear_favorites"
         app:showAsAction="never" />
 </menu>

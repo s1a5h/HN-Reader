@@ -1,6 +1,7 @@
 package net.gorceag.hnreader
 
 import android.app.Fragment
+import android.graphics.Bitmap
 import android.os.AsyncTask
 import android.os.Bundle
 import android.support.design.widget.FloatingActionButton
@@ -10,17 +11,23 @@ import android.support.v7.widget.Toolbar
 import android.view.View
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View.INVISIBLE
+import android.view.View.VISIBLE
 import android.webkit.WebViewFragment
+import android.widget.ImageView
+import net.gorceag.hnreader.chart.GraphFragment
 import net.gorceag.hnreader.db.HistoryApi
 import net.gorceag.hnreader.db.Table
+import net.gorceag.hnreader.detail.WebFragment
+import net.gorceag.hnreader.list.ArticleListFragment
 import net.gorceag.hnreader.model.Article
-import net.gorceag.hnreader.model.ArticleSummary
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
     lateinit var menu: Menu
     var lastArticleId: String = ""
     lateinit var articleListFragment: ArticleListFragment
+    lateinit var button: FloatingActionButton
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,50 +38,56 @@ class MainActivity : AppCompatActivity() {
 
         HistoryApi.initialize(this)
         articleListFragment = ArticleListFragment()
-        val fragmentManager = fragmentManager
-        fragmentManager.beginTransaction()
+        supportFragmentManager.beginTransaction()
                 .replace(R.id.list_content_container, articleListFragment, "List")
                 .commit()
 
-        val fab = findViewById(R.id.fab) as FloatingActionButton
-        fab.setOnClickListener { view ->
+        button = findViewById(R.id.fab) as FloatingActionButton
+        button.setOnClickListener { view ->
             showGraph()
         }
     }
 
     private fun showGraph() {
-        val summary = ArrayList<ArticleSummary>()
-        summary.add(ArticleSummary(10, 330))
-        summary.add(ArticleSummary(14, 300))
-        summary.add(ArticleSummary(28, 50))
-        val fragment = GraphFragment(summary)
-        val fragmentManager = fragmentManager
-        fragmentManager.beginTransaction()
-                .replace(R.id.graph_container, fragment, "Graph")
-                .addToBackStack("Graph")
-                .commit()
+        val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
+        if (fragment == null) {
+            articleListFragment.view?.setDrawingCacheEnabled(true);
+            val bitmap = articleListFragment.view?.getDrawingCache(true)?.copy(
+                    Bitmap.Config.ARGB_8888, false);
+            articleListFragment.view?.destroyDrawingCache();
+
+            button = findViewById(R.id.fab) as FloatingActionButton
+            var dimens = IntArray(2)
+            button.getLocationInWindow(dimens)
+            if (bitmap != null) {
+                supportFragmentManager.beginTransaction()
+                        .add(R.id.content_container, GraphFragment(bitmap, dimens), "Graph")
+                        .commit()
+            }
+        }
     }
 
-    fun showDetail(id: String, url: String) {
-        lastArticleId = id
+    fun showDetail(id: String, url: String, bitmap: Bitmap, y: Int) {
 
-        object : AsyncTask<String, Void, Unit>() {
-            override fun doInBackground(vararg params: String?) {
-                HistoryApi.insert(id, Table.VISITED)
-            }
+        val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
+        if (fragment == null) {
+            lastArticleId = id
 
-            override fun onPostExecute(result: Unit?) {
-                articleListFragment.updateModel(id)
-            }
-        }.execute()
+            object : AsyncTask<String, Void, Unit>() {
+                override fun doInBackground(vararg params: String?) {
+                    HistoryApi.insert(id, Table.VISITED)
+                }
 
-        val fragment = ArticleWebViewFragment(url)
-        val fragmentManager = fragmentManager
-        fragmentManager.beginTransaction()
-                .replace(R.id.web_content_container, fragment, "Detail")
-                .addToBackStack("Detail")
-                .commit()
-        updateItemMenu(id)
+                override fun onPostExecute(result: Unit?) {
+                    articleListFragment.updateModel(id)
+                }
+            }.execute()
+            supportFragmentManager.beginTransaction()
+                    .add(R.id.content_container, net.gorceag.hnreader.detail.WebFragment(url, bitmap, y), "Detail")
+                    .commit()
+            updateItemMenu(id)
+            hideButton()
+        }
     }
 
     private fun updateItemMenu(id: String) {
@@ -190,10 +203,21 @@ class MainActivity : AppCompatActivity() {
         }.execute()
     }
 
+    private fun hideButton() {
+        button.visibility = INVISIBLE
+    }
+
+    private fun showButton() {
+        button.visibility = VISIBLE
+    }
+
     override fun onBackPressed() {
-        val fragmentManager = fragmentManager
-        if (fragmentManager.findFragmentById(R.id.web_content_container) != null) {
+        val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
+        if (fragment != null) {
             updateListMenu()
+            showButton()
+            (fragment as AnimatedFragment).removeSelf(supportFragmentManager)
+            return
         }
         super.onBackPressed()
     }

@@ -2,19 +2,21 @@ package net.gorceag.kotlinblade
 
 import android.app.Activity
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Paint
+import android.graphics.*
+import android.os.Looper
+import android.support.v4.content.ContextCompat
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import net.gorceag.hnreader.R
+import net.gorceag.hnreader.model.GraphModel
 import java.util.*
 import java.util.concurrent.*
 
 /**
  * Created by slash on 2/5/17.
  */
-class GraphSurfaceView(activity: Activity, val data: Map<Int, Int>) : SurfaceView(activity), SurfaceHolder.Callback {
-    inner class Drawer(val holder: SurfaceHolder, val context: Context) : Runnable {
+class GraphSurfaceView(activity: Activity, val model: GraphModel, val background: Bitmap, val position: IntArray) : SurfaceView(activity), SurfaceHolder.Callback {
+    inner class Drawer(val holder: SurfaceHolder, val context: Context) : Thread() {
         val paint: Paint
         lateinit var vNumbers: Array<String>
         lateinit var hNumbers: Array<String>
@@ -24,14 +26,15 @@ class GraphSurfaceView(activity: Activity, val data: Map<Int, Int>) : SurfaceVie
         val rightMargin: Float = context.resources.getDimension(R.dimen.padding) * 2
 
         init {
+//            holder.setFormat(PixelFormat.TRANSPARENT);
             paint = Paint()
             paint.textSize = context.resources.getDimension(R.dimen.text_size)
         }
 
         fun initScreenRelatedData(width: Int, height: Int) {
-            var max = data.values.max()
+            var max = model.data.keys.max()
             vNumbers = assembleRulerScale(height, if (max != null) max else 0)
-            max = data.keys.max()
+            max = model.distance
             hNumbers = assembleRulerScale(width, if (max != null) max else 0)
             setBottomMargin()
             setLeftMargin()
@@ -44,7 +47,7 @@ class GraphSurfaceView(activity: Activity, val data: Map<Int, Int>) : SurfaceVie
                 step = increaseStep(step)
             }
             val size = 1 + highestValue / step + if (highestValue % step == 0) 0 else 1
-            return Array(size, { i -> (i * step).toString()})
+            return Array(size, { i -> (i * step).toString() })
         }
 
         private fun increaseStep(step: Int): Int {
@@ -69,7 +72,7 @@ class GraphSurfaceView(activity: Activity, val data: Map<Int, Int>) : SurfaceVie
         private fun setLeftMargin() {
             val resources = context.resources
             val padding = resources.getDimension(R.dimen.padding)
-            var textWidth = Array(vNumbers.size, { i -> paint.measureText(vNumbers.get(i))}).max()
+            var textWidth = Array(vNumbers.size, { i -> paint.measureText(vNumbers.get(i)) }).max()
             if (textWidth == null) {
                 textWidth = 0f
             }
@@ -77,15 +80,45 @@ class GraphSurfaceView(activity: Activity, val data: Map<Int, Int>) : SurfaceVie
             leftMargin = padding + textWidth + textToLine
         }
 
+        var isRunning = false
+
         override fun run() {
-            val canvas = holder.lockCanvas()
-            canvas.drawColor(context.getResources().getColor(R.color.colorAccent))
-            drawRulers(canvas)
-            drawBars(canvas)
-            drawData(canvas)
-            holder.unlockCanvasAndPost(canvas)
+            var oldStartTime = 0L
+            while (isRunning) {
+                val cores = Runtime.getRuntime().availableProcessors();
+                println("NUMBER OF CORES: " + cores)
+                val startTime = System.currentTimeMillis()
+                val delta = startTime - oldStartTime
+                val actualFps = 1000L / delta
+                println("FPS: " + actualFps)
+                oldStartTime = startTime
+                val canvas = holder.lockCanvas()
+//            canvas.drawColor(ContextCompat.getColor(context, R.color.colorAccent))
+                canvas.drawBitmap(background, 0f, 0f, paint)
+                paint.color = ContextCompat.getColor(context, R.color.colorAccent)
+                canvas.drawCircle(position.get(0).toFloat(), position.get(1).toFloat(), 100f, paint)
+                position.set(1, position.get(1) - 2)
+
+                drawRulers(canvas)
+                drawBars(canvas)
+                drawData(canvas)
+                holder.unlockCanvasAndPost(canvas)
+                val endTime = System.currentTimeMillis()
+                println("FOR: " + mSec + ", SAFE MARGIN : " + (mSec - (endTime - startTime)))
+                val wait = mSec - (endTime - startTime)
+                if (wait > 0) {
+                    Thread.sleep(wait)
+                }
+            }
+        }
+        fun initiate() {
+            isRunning = true
+            start()
         }
 
+        fun terminate() {
+            isRunning = false
+        }
         private fun drawRulers(canvas: Canvas) {
             val padding: Float = context.resources.getDimension(R.dimen.padding)
             var numberOfSpaces = vNumbers.size - 1
@@ -127,21 +160,40 @@ class GraphSurfaceView(activity: Activity, val data: Map<Int, Int>) : SurfaceVie
             val hValue = hNumbers.last().toFloat()
             val vValue = vNumbers.last().toFloat()
 
+            val columnCount = model.data.size
+            val columnSpacing = context.resources.getDimension(R.dimen.column_spacing)
+            val columnWidth = hPixels / columnCount - columnSpacing / columnCount - columnSpacing
+
             val hMeter = hPixels / hValue
             val vMeter = vPixels / vValue
-            for (pair in data) {
-                val x = pair.key * hMeter + leftMargin
-                val y = canvas.height - pair.value * vMeter - bottomMargin
+            val bottom = canvas.height - bottomMargin
+            paint.setShadowLayer(10.0f, 0.0f, 2.0f, ContextCompat.getColor(context, R.color.shadow));
+            for ((index, key) in model.data.keys.withIndex()) {
+                val left = leftMargin + columnSpacing + index * (columnWidth + columnSpacing)
+                val top = canvas.height - key * vMeter - bottomMargin
+                val path = Path()
+                path.moveTo(left, top)
+                path.lineTo(left + columnWidth, top)
+                path.lineTo(left + columnWidth, bottom)
+                path.lineTo(left, bottom)
+                path.lineTo(left, top)
+                val color = model.data.get(key)
+                if (color != null) {
+                    paint.color = color
+                }
+                canvas.drawPath(path, paint)
 //                val x = 2000 * hMeter + leftMargin
 //                val y = canvas.height - 300 * vMeter - bottomMargin
-                canvas.drawLine(x, y, x, canvas.height - bottomMargin, paint)
             }
+            paint.color = Color.BLACK
+//            paint.style = Paint.Style.STROKE
         }
     }
 
     val fps: Int = context.resources.getInteger(R.integer.fps)
-    val mSec: Float = 1000f / fps
-    var drawer: Drawer = Drawer(getHolder(), activity)
+    val mSec: Long = (1000f / fps).toLong()
+
+    var drawer: Drawer = Drawer(holder, activity)
 
     init {
         getHolder().addCallback(this)
@@ -151,12 +203,16 @@ class GraphSurfaceView(activity: Activity, val data: Map<Int, Int>) : SurfaceVie
     lateinit var viewRefreshFuture: ScheduledFuture<*>
 
     private fun startDraw() {
-        viewRefreshExecutor = Executors.newSingleThreadScheduledExecutor()
-        viewRefreshFuture = viewRefreshExecutor.scheduleAtFixedRate(drawer, mSec.toLong(), mSec.toLong(), TimeUnit.MILLISECONDS)
+//        viewRefreshExecutor = Executors.newSingleThreadScheduledExecutor()
+//        viewRefreshFuture = viewRefreshExecutor.scheduleAtFixedRate(drawer, mSec.toLong(), mSec.toLong(), TimeUnit.MILLISECONDS)
+        drawer.initiate()
     }
 
-    private fun stopDraw() {
-        viewRefreshFuture.cancel(true)
+    fun stopDraw() {
+//        viewRefreshFuture.cancel(true)
+
+        drawer.terminate()
+        background.recycle()
     }
 
     override fun surfaceCreated(holder: SurfaceHolder?) {
@@ -165,6 +221,8 @@ class GraphSurfaceView(activity: Activity, val data: Map<Int, Int>) : SurfaceVie
 
     override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
         drawer.initScreenRelatedData(width, height)
+//        drawer.draw()
+
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder?) {

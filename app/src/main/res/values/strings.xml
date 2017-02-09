@@ -7,6 +7,8 @@
     <string name="action_clear_visited">Clear visited</string>
 
     <string name="list_url">https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty</string>
+    <string name="list_item_url_head">https://hacker-news.firebaseio.com/v0/item/</string>
+    <string name="list_item_url_tail">.json?print=pretty</string>
 
     <string name="score">Score:</string>
     <string name="author">Author:</string>

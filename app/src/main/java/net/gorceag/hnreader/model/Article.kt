@@ -5,7 +5,7 @@ package net.gorceag.hnreader.model
  */
 
 class Article(val id: String) {
-    var isProcessed = false
+    var hasFullData = false
     var isVisited = false
     var isFavorite = false
 
@@ -22,9 +22,7 @@ class Article(val id: String) {
         copyTo.by = by
         copyTo.comments = comments
         copyTo.time = time
-        if (copyTo.url != null) {
-            copyTo.url = url
-        }
-        copyTo.isProcessed = true
+        copyTo.url = url
+        copyTo.hasFullData = true
     }
 }

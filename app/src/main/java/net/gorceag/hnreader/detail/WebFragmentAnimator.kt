@@ -1,51 +1,57 @@
 package net.gorceag.hnreader.detail
 
-import android.app.Activity
 import android.content.Context
 import android.graphics.*
 import android.os.Handler
 import android.support.v4.content.ContextCompat
+import android.util.TypedValue
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import net.gorceag.hnreader.R
 
 /**
  * Created by slash on 2/9/17.
  */
-class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val backgroundImage: Bitmap, var position: Array<Float>) : SurfaceView(activity), SurfaceHolder.Callback {
-
+class WebFragmentAnimator(val fragment: WebFragment, val backgroundImage: Bitmap, var position: Array<Float>) : SurfaceView(fragment.activity), SurfaceHolder.Callback {
 
     inner class Drawer(val holder: SurfaceHolder, val context: Context) : Thread() {
-        val paint: Paint
+        lateinit var paint: Paint
         var isRunning = false
         lateinit var middlegroundImage: Bitmap
-        var foregroundImage: Bitmap
-        var iter: Int = 0
-        var iter2: Int = 0
+        lateinit var foregroundImage: Bitmap
         var state = 1
         var progress = 0f
         var maxDistance = 0f
 
         init {
             holder.setFormat(PixelFormat.TRANSPARENT)
-            paint = Paint()
-//            paint.setShadowLayer(10.0f, 0.0f, 2.0f, ContextCompat.getColor(context, R.color.shadow))
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
-            paint.strokeWidth = context.resources.getDimension(R.dimen.list_separator_height)
+            setPaint()
+            trimPosition()
+            setForegroundImage()
+            setDistance()
+        }
 
-            paint.style = Paint.Style.FILL
-            verifyPosition()
-            foregroundImage = Bitmap.createBitmap(backgroundImage, 0, position[0].toInt(), backgroundImage.width, (position[1] - position[0]).toInt())
-//            val upperDistance = position[0]
-//            val lowerDistance = backgroundImage.height - position[1]
+        private fun setDistance() {
             val max = arrayOf(position[0], backgroundImage.height - position[1]).max()
             if (max != null) {
                 maxDistance = max
             }
-//            maxDistance = if (upper > backgroundImage.height - position[1]) position[0] else canvas.height - lowerYEnd
         }
 
-        private fun verifyPosition() {
+        private fun setForegroundImage() {
+            foregroundImage = Bitmap.createBitmap(backgroundImage, 0, position[0].toInt(), backgroundImage.width, (position[1] - position[0]).toInt())
+        }
+
+        private fun setPaint() {
+            paint = Paint()
+            paint.color = ContextCompat.getColor(context, R.color.neutral)
+            paint.strokeWidth = context.resources.getDimension(R.dimen.list_separator_height)
+            paint.style = Paint.Style.FILL
+        }
+
+        private fun trimPosition() {
             if (position[0] < 0) {
                 position[0] = 0f
             }
@@ -56,11 +62,8 @@ class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val bac
 
         private fun updateProgress(delta: Long) {
             when (state) {
-                1, 2, 4, 5 -> {
-                    progress += (delta / 1000f)
-                }
+                1, 2, 4, 5, 6 -> progress += (delta.toFloat() / avgAnimationStepTime)
             }
-            println(progress)
             if (progress >= 1) {
                 updateState()
             }
@@ -69,25 +72,23 @@ class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val bac
         fun updateState() {
             progress = 0f
             when (state) {
-                1 -> {
-                    val handler = Handler(context.mainLooper)
-                    handler.post { fragment.enableBackGround() }
-                }
-                2 -> {
-                    isClickable = false
-                }
-                3 -> {
-                    isClickable = true
-                }
-                4 -> {
-                    val handler = Handler(context.mainLooper)
-                    handler.post { fragment.disableBackGround() }
-                }
-                5 -> {
-                    fragment.terminate()
-                }
+                1 -> enableParentBackground(true)
+                2 -> isClickable = false
+                3 -> isClickable = true
+                4 -> enableParentBackground(false)
+                6 -> terminateParent()
             }
             state++
+        }
+
+        private fun enableParentBackground(enable: Boolean) {
+            val handler = Handler(context.mainLooper)
+            handler.post { if (enable) fragment.enableBackGround() else fragment.disableBackGround() }
+        }
+
+        private fun terminateParent() {
+            val handler = Handler(context.mainLooper)
+            handler.post { fragment.terminate() }
         }
 
         override fun run() {
@@ -97,55 +98,80 @@ class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val bac
                 val delta = startTime - oldStartTime
                 oldStartTime = startTime
                 updateProgress(delta)
-
-//                showFps(delta)
+                showFps(delta)
                 val canvas = holder.lockCanvas()
                 if (canvas != null) {
-                    canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-                    when (state) {
-                        1 -> {
-                            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
-                            drawBase(canvas)
-                            paint.alpha = (255 * (1f - progress)).toInt()
-                            canvas.drawBitmap(foregroundImage, 0f, position[0], paint)
-                            paint.alpha = 255
-                        }
-                        2 -> {
-                            paint.alpha = (255 * (1f - progress)).toInt()
-                            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
-                            paint.alpha = 255
-                        }
-                        4 -> {
-                            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
-                            drawBase2(canvas)
-                            drawImage(canvas)
-                        }
-                        5 -> {
-                            paint.alpha = (255 * (1f - progress)).toInt()
-                            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
-                            canvas.drawRect(0f, position[0], canvas.width.toFloat(), position[1], paint)
-                            paint.alpha = 255
-                        }
-                    }
-//                    pg(canvas)
-//                    canvas.drawColor(ContextCompat.getColor(context, R.color.colorAccent))
-//                    canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
-
-
-//                    drawBase(canvas)
-
-//                    canvas.drawRect(0f, position[0] - iter, canvas.width.toFloat(), position[1] - 3 + iter, paint)
-//                    paint.setShadowLayer(0f, 0f, 0f, ContextCompat.getColor(context, R.color.shadow));
-                    iter += 10
-                    iter2 -= 1
-//                paint.color = ContextCompat.getColor(context, R.color.colorAccent)
+                    drawChoreography(canvas)
                     holder.unlockCanvasAndPost(canvas)
                 }
                 manageWait(startTime)
             }
         }
 
-        fun drawImage(canvas: Canvas) {
+        private fun drawChoreography(canvas: Canvas) {
+            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+            when (state) {
+                1 -> drawCellExpand(canvas)
+                2 -> drawFadeOutRect(canvas)
+                4 -> drawFadeMiddleImage(canvas)
+                5 -> drawCellCollapse(canvas)
+                6 -> drawFadeOutBackground(canvas)
+            }
+        }
+
+        private fun drawCellExpand(canvas: Canvas) {
+            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
+            drawBase(canvas, AccelerateInterpolator(2f).getInterpolation(progress))
+            paint.alpha = (255 * (1f - progress)).toInt()
+            canvas.drawBitmap(foregroundImage, 0f, position[0], paint)
+            paint.alpha = 255
+        }
+
+        private fun drawFadeOutRect(canvas: Canvas) {
+            paint.alpha = (255 * (1f - progress)).toInt()
+            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
+            paint.alpha = 255
+        }
+
+        private fun drawFadeMiddleImage(canvas: Canvas) {
+            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
+            paint.alpha = (255 * (1f - progress)).toInt()
+            canvas.drawBitmap(middlegroundImage, 0f, 0f, paint)
+            paint.alpha = 255
+        }
+
+        private fun drawCellCollapse(canvas: Canvas) {
+            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
+            drawBase(canvas, DecelerateInterpolator(1f).getInterpolation(1 - progress))
+//            drawInnerImage(canvas)
+        }
+
+        private fun drawFadeOutBackground(canvas: Canvas) {
+            paint.alpha = (255 * (1f - progress)).toInt()
+            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
+            canvas.drawRect(0f, position[0], canvas.width.toFloat(), position[1], paint)
+            paint.alpha = 255
+        }
+
+        fun drawInnerImage(canvas: Canvas) {
+            val bitmap2 = getCroppedBitmap(getOuterPath(canvas))
+            paint.alpha = (255 * (1f - progress)).toInt()
+            canvas.drawBitmap(bitmap2, 0f, 0f, paint)
+            paint.alpha = 255
+        }
+
+        private fun getCroppedBitmap(path: Path): Bitmap {
+            val bitmap = Bitmap.createBitmap(backgroundImage.width, backgroundImage.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            canvas.drawBitmap(middlegroundImage, 0f, 0f, paint)
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+            canvas.drawPath(path, paint)
+            paint.xfermode = null
+            return bitmap
+        }
+
+
+        private fun getOuterPath(canvas: Canvas): Path {
             val width = canvas.width.toFloat()
             val height = canvas.height.toFloat()
             val xStep = width * weight
@@ -157,8 +183,6 @@ class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val bac
             val lowerYEnd = position[1] + yStrafeEnd
             val lowerYMiddle = position[1] + yStrafeMiddle
 
-//            canvas.drawRect(0f, 0f, width, height, paint)
-
             val path = Path()
             path.moveTo(0f, upperYEnd)
             path.cubicTo(0f, upperYEnd, xStep, upperYMiddle, xMiddle, upperYMiddle)
@@ -166,80 +190,20 @@ class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val bac
             path.lineTo(width, 0f)
             path.lineTo(0f, 0f)
             path.lineTo(0f, upperYEnd)
-//            path.lineTo(width, upperYEnd)
             path.moveTo(width, lowerYEnd)
             path.cubicTo(width, lowerYEnd, width - xStep, lowerYMiddle, xMiddle, lowerYMiddle)
             path.cubicTo(xMiddle, lowerYMiddle, xStep, lowerYMiddle, 0f, lowerYEnd)
             path.lineTo(0f, height)
             path.lineTo(width, height)
             path.lineTo(width, lowerYEnd)
-
-//                        val path = Path()
-//            path.moveTo(200f, 200f)
-//            path.lineTo(600f, 200f)
-//            path.lineTo(600f, 600f)
-//            path.lineTo(200f, 600f)
-//            path.lineTo(200f, 200f)
-//
-//            path.moveTo(200f, 700f)
-//            path.lineTo(600f, 700f)
-//            path.lineTo(600f, 1100f)
-//            path.lineTo(200f, 1100f)
-//            path.lineTo(200f, 700f)
-
-
-            var batmap2 = Bitmap.createBitmap(backgroundImage.width, backgroundImage.height, Bitmap.Config.ARGB_8888)
-            val canvas2 = Canvas(batmap2)
-            canvas2.drawBitmap(middlegroundImage, 0f, 0f, paint)
-            paint.setXfermode(PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-//            paint.color = ContextCompat.getColor(context, R.color.colorPrimary)
-            canvas2.drawPath(path, paint)
-            paint.setXfermode(null)
-            paint.alpha = (255 * (1f - progress)).toInt()
-            canvas.drawBitmap(batmap2, 0f, 0f, paint)
-            paint.alpha = 255
-
-
-//            paint.color = ContextCompat.getColor(context, R.color.colorPrimary)
-//            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
-//            paint.color = ContextCompat.getColor(context, R.color.green)
-//            canvas.drawCircle(300f, 300f, 100f, paint)
-//            val path = Path()
-//            path.moveTo(200f, 200f)
-//            path.lineTo(600f, 200f)
-//            path.lineTo(600f, 600f)
-//            path.lineTo(200f, 600f)
-//            path.lineTo(200f, 200f)
-//
-//            path.moveTo(200f, 700f)
-//            path.lineTo(600f, 700f)
-//            path.lineTo(600f, 1100f)
-//            path.lineTo(200f, 1100f)
-//            path.lineTo(200f, 700f)
-
-//            paint.style = Paint.Style.FILL
-
-//            var batmap2 = Bitmap.createBitmap(backgroundImage.width, backgroundImage.height, Bitmap.Config.ARGB_8888)
-//            val canvas2 = Canvas(batmap2)
-//            canvas2.drawBitmap(backgroundImage, 0f, 0f, paint)
-//            canvas2.drawBitmap(backgroundImage, 0f, 0f, paint)
-//            paint.setXfermode(PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
-//            paint.setXfermode(PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-//            canvas2.drawPath(path, paint)
-//            canvas2.drawPath(path2, paint)
-
-//            paint.alpha = (255 * (1f - progress)).toInt()
-//            paint.setXfermode(null)
-//            canvas.drawBitmap(batmap2, 0f, 0f, paint)
+            return path
         }
 
-        val weight = 0.2f
-
-        private fun drawBase(canvas: Canvas) {
+        private fun getInnerPath(canvas: Canvas, drawProgress: Float): Path {
             val width = canvas.width.toFloat()
             val xStep = width * weight
             val xMiddle = width / 2
-            val yStrafeEnd = maxDistance * progress
+            val yStrafeEnd = maxDistance * drawProgress
             val yStrafeMiddle = yStrafeEnd * 1.3f
             val upperYEnd = position[0] - yStrafeEnd
             val upperYMiddle = position[0] - yStrafeMiddle
@@ -250,59 +214,25 @@ class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val bac
             path.moveTo(0f, upperYEnd)
             path.cubicTo(0f, upperYEnd, xStep, upperYMiddle, xMiddle, upperYMiddle)
             path.cubicTo(xMiddle, upperYMiddle, width - xStep, upperYMiddle, width, upperYEnd)
-//            path.lineTo(width, upperYEnd)
             path.lineTo(width, lowerYEnd)
             path.cubicTo(width, lowerYEnd, width - xStep, lowerYMiddle, xMiddle, lowerYMiddle)
             path.cubicTo(xMiddle, lowerYMiddle, xStep, lowerYMiddle, 0f, lowerYEnd)
-//            path.lineTo(0f, lowerYEnd)
             path.lineTo(0f, upperYEnd)
-
-            canvas.drawPath(path, paint)
-            paint.style = Paint.Style.STROKE
-            paint.color = ContextCompat.getColor(context, R.color.colorPrimary)
-            canvas.drawPath(path, paint)
-
-            paint.style = Paint.Style.FILL
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
+            return path
         }
 
-        private fun drawBase2(canvas: Canvas) {
-            val width = canvas.width.toFloat()
-            val xStep = width * weight
-            val xMiddle = width / 2
-            val yStrafeEnd = maxDistance * (1 - progress)
-            val yStrafeMiddle = yStrafeEnd * 1.3f
-            val upperYEnd = position[0] - yStrafeEnd
-            val upperYMiddle = position[0] - yStrafeMiddle
-            val lowerYEnd = position[1] + yStrafeEnd
-            val lowerYMiddle = position[1] + yStrafeMiddle
-
-
-            val path = Path()
-            path.moveTo(0f, upperYEnd)
-            path.cubicTo(0f, upperYEnd, xStep, upperYMiddle, xMiddle, upperYMiddle)
-            path.cubicTo(xMiddle, upperYMiddle, width - xStep, upperYMiddle, width, upperYEnd)
-//            path.lineTo(width, upperYEnd)
-            path.lineTo(width, lowerYEnd)
-            path.cubicTo(width, lowerYEnd, width - xStep, lowerYMiddle, xMiddle, lowerYMiddle)
-            path.cubicTo(xMiddle, lowerYMiddle, xStep, lowerYMiddle, 0f, lowerYEnd)
-//            path.lineTo(0f, lowerYEnd)
-            path.lineTo(0f, upperYEnd)
-
+        private fun drawBase(canvas: Canvas, drawProgress: Float) {
+            val path = getInnerPath(canvas, drawProgress)
             canvas.drawPath(path, paint)
             paint.style = Paint.Style.STROKE
             paint.color = ContextCompat.getColor(context, R.color.colorPrimary)
             canvas.drawPath(path, paint)
-//            canvas.drawBitmap(foregroundImage, 0f, position[0], paint)
-
             paint.style = Paint.Style.FILL
             paint.color = ContextCompat.getColor(context, R.color.neutral)
-
         }
 
         private fun manageWait(startTime: Long) {
             val endTime = System.currentTimeMillis()
-//            println("FOR: " + mSec + ", SAFE MARGIN : " + (mSec - (endTime - startTime)))
             val wait = mSec - (endTime - startTime)
             if (wait > 0) {
                 Thread.sleep(wait)
@@ -310,8 +240,7 @@ class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val bac
         }
 
         private fun showFps(delta: Long) {
-
-            val cores = Runtime.getRuntime().availableProcessors();
+            val cores = Runtime.getRuntime().availableProcessors()
             println("NUMBER OF CORES: " + cores)
             if (delta != 0L) {
                 val actualFps = 1000L / delta
@@ -326,22 +255,34 @@ class WebFragmentAnimator(val fragment: WebFragment, activity: Activity, val bac
 
         fun terminate() {
             isRunning = false
+        }
+
+        fun recycleBitmaps() {
             backgroundImage.recycle()
+            middlegroundImage.recycle()
             foregroundImage.recycle()
         }
     }
 
     val fps: Int = context.resources.getInteger(R.integer.fps)
+    val avgAnimationStepTime = context.resources.getInteger(R.integer.avg_animation_step_time)
+    val weight: Float
+
     val mSec: Long = (1000f / fps).toLong()
-    var drawer: Drawer = Drawer(holder, activity)
+    var drawer: Drawer = Drawer(holder, fragment.activity)
 
     init {
-        getHolder().addCallback(this)
+        val out: TypedValue = TypedValue()
+        context.resources.getValue(R.dimen.expand_bubble_weight, out, true)
+        weight = out.float
+        holder.addCallback(this)
     }
 
-    fun finalize(bitmap: Bitmap) {
-        drawer.middlegroundImage = bitmap
-        drawer.updateState()
+    fun roundUp(bitmap: Bitmap) {
+        if (drawer.state == 3) {
+            drawer.middlegroundImage = bitmap
+            drawer.updateState()
+        }
     }
 
     private fun startDraw() {

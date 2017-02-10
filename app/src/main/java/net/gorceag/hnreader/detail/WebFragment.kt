@@ -9,12 +9,15 @@ import android.view.View
 import android.view.View.INVISIBLE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.webkit.WebViewFragment
 import android.widget.FrameLayout
 import net.gorceag.hnreader.AnimatedFragment
+import net.gorceag.hnreader.MainActivity
 import net.gorceag.hnreader.R
-import net.gorceag.kotlinblade.GraphSurfaceView
+import net.gorceag.kotlinblade.ChartFragmentAnimator
 
 /**
  * Created by slash on 2/6/17.
@@ -25,13 +28,15 @@ class WebFragment(val url: String, val background: Bitmap, val coords: Array<Flo
     lateinit var webView: WebView
     lateinit var animator: WebFragmentAnimator
 
-
     override fun onCreateView(inflater: LayoutInflater?, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         var root = inflater?.inflate(R.layout.fragment_web, container, false)
         webView = root?.findViewById(R.id.web_content) as WebView
+        webView.setWebViewClient(object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, url: WebResourceRequest): Boolean = true
+        })
         webView.visibility = INVISIBLE
         val container = root?.findViewById(R.id.animator_container) as FrameLayout
-        animator = WebFragmentAnimator(this, activity, background, coords)
+        animator = WebFragmentAnimator(this, background, coords)
         animator.setZOrderOnTop(true)
         animator.isClickable = true
         container.addView(animator)
@@ -41,11 +46,13 @@ class WebFragment(val url: String, val background: Bitmap, val coords: Array<Flo
     fun enableBackGround() {
         webView.visibility = VISIBLE
     }
+
     fun disableBackGround() {
         webView.visibility = INVISIBLE
     }
 
     fun terminate() {
+        (activity as MainActivity).updateListMenu()
         fragmentManager.beginTransaction()
                 .remove(this)
                 .commit()
@@ -62,7 +69,7 @@ class WebFragment(val url: String, val background: Bitmap, val coords: Array<Flo
                 Bitmap.Config.ARGB_8888, false);
         webView.destroyDrawingCache();
         if (bitmap != null) {
-            animator.finalize(bitmap)
+            animator.roundUp(bitmap)
         }
     }
 }

@@ -8,5 +8,5 @@
     <color name="light">#CACACA</color>
     <color name="dark">#444444</color>
     <color name="green">#228822</color>
-    <color name="shadow">#FF000000</color>
+    <color name="black">#000000</color>
 </resources>

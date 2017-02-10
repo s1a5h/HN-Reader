@@ -15,7 +15,7 @@ import android.view.View.INVISIBLE
 import android.view.View.VISIBLE
 import android.webkit.WebViewFragment
 import android.widget.ImageView
-import net.gorceag.hnreader.chart.GraphFragment
+import net.gorceag.hnreader.chart.ChartFragment
 import net.gorceag.hnreader.db.HistoryApi
 import net.gorceag.hnreader.db.Table
 import net.gorceag.hnreader.detail.WebFragment
@@ -61,9 +61,10 @@ class MainActivity : AppCompatActivity() {
 //            button.getLocationInWindow(dimens)
             if (bitmap != null) {
                 supportFragmentManager.beginTransaction()
-                        .add(R.id.content_container, GraphFragment(bitmap, dimens), "Graph")
+                        .add(R.id.content_container, ChartFragment(bitmap, dimens), "Graph")
                         .commit()
             }
+            updateChartMenu()
         }
     }
 
@@ -122,12 +123,20 @@ class MainActivity : AppCompatActivity() {
         }.execute();
     }
 
-    private fun updateListMenu() {
+    fun updateListMenu() {
         menu.findItem(R.id.action_add).setVisible(false)
         menu.findItem(R.id.action_remove).setVisible(false)
         menu.findItem(R.id.action_clear_visited).setVisible(true)
         menu.findItem(R.id.action_clear_favorites).setVisible(true)
         menu.findItem(R.id.action_show_chart).setVisible(true)
+    }
+
+    fun updateChartMenu() {
+        menu.findItem(R.id.action_add).setVisible(false)
+        menu.findItem(R.id.action_remove).setVisible(false)
+        menu.findItem(R.id.action_clear_visited).setVisible(false)
+        menu.findItem(R.id.action_clear_favorites).setVisible(false)
+        menu.findItem(R.id.action_show_chart).setVisible(false)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -226,7 +235,6 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
         if (fragment != null) {
-            updateListMenu()
 //            showButton()
             (fragment as AnimatedFragment).removeSelf(supportFragmentManager)
             return

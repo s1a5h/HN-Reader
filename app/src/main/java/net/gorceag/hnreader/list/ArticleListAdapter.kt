@@ -43,15 +43,11 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
                 val article = articles[adapterPosition]
                 if (article.hasFullData && article.url != "") {
 
-                    var dimens = IntArray(2)
-                    itemView.getLocationInWindow(dimens)
-                    itemView.setDrawingCacheEnabled(true)
-                    val bitmap = itemView.getDrawingCache(true)?.copy(
-                            Bitmap.Config.ARGB_8888, false)
-                    itemView.destroyDrawingCache()
-                    if (bitmap != null) {
-                        context.showDetail(article.id, article.url, bitmap, dimens[0])
-                    }
+//                    var dimens = IntArray(2)
+//                    getLocationInWindow(dimens)
+                    val height = itemView.height - context.resources.getDimension(R.dimen.list_separator_height)
+                    val coords = arrayOf(itemView.y, itemView.y + height)
+                        context.showDetail(article.id, article.url, coords)
                 }
             }
         }

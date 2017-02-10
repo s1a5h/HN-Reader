@@ -5,6 +5,7 @@
     <string name="action_remove">Remove from favorites</string>
     <string name="action_clear_favorites">Clear favorites</string>
     <string name="action_clear_visited">Clear visited</string>
+    <string name="action_show_chart">Show chart</string>
 
     <string name="list_url">https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty</string>
     <string name="list_item_url_head">https://hacker-news.firebaseio.com/v0/item/</string>

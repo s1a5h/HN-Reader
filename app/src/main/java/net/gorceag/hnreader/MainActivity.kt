@@ -27,7 +27,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var menu: Menu
     var lastArticleId: String = ""
     lateinit var articleListFragment: ArticleListFragment
-    lateinit var button: FloatingActionButton
+//    lateinit var button: FloatingActionButton
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,13 +42,13 @@ class MainActivity : AppCompatActivity() {
                 .replace(R.id.list_content_container, articleListFragment, "List")
                 .commit()
 
-        button = findViewById(R.id.fab) as FloatingActionButton
-        button.setOnClickListener { view ->
-            showGraph()
-        }
+//        button = findViewById(R.id.fab) as FloatingActionButton
+//        button.setOnClickListener { view ->
+//            showChart()
+//        }
     }
 
-    private fun showGraph() {
+    private fun showChart() {
         val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
         if (fragment == null) {
             articleListFragment.view?.setDrawingCacheEnabled(true);
@@ -56,9 +56,9 @@ class MainActivity : AppCompatActivity() {
                     Bitmap.Config.ARGB_8888, false);
             articleListFragment.view?.destroyDrawingCache();
 
-            button = findViewById(R.id.fab) as FloatingActionButton
+//            button = findViewById(R.id.fab) as FloatingActionButton
             var dimens = IntArray(2)
-            button.getLocationInWindow(dimens)
+//            button.getLocationInWindow(dimens)
             if (bitmap != null) {
                 supportFragmentManager.beginTransaction()
                         .add(R.id.content_container, GraphFragment(bitmap, dimens), "Graph")
@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun showDetail(id: String, url: String, bitmap: Bitmap, y: Int) {
+    fun showDetail(id: String, url: String, coords: Array<Float>) {
 
         val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
         if (fragment == null) {
@@ -82,17 +82,25 @@ class MainActivity : AppCompatActivity() {
                     articleListFragment.updateModel(id)
                 }
             }.execute()
-            supportFragmentManager.beginTransaction()
-                    .add(R.id.content_container, net.gorceag.hnreader.detail.WebFragment(url, bitmap, y), "Detail")
-                    .commit()
+
+            articleListFragment.view?.setDrawingCacheEnabled(true);
+            val bitmap = articleListFragment.view?.getDrawingCache(true)?.copy(
+                    Bitmap.Config.ARGB_8888, false);
+            articleListFragment.view?.destroyDrawingCache();
+            if (bitmap != null) {
+                supportFragmentManager.beginTransaction()
+                        .add(R.id.content_container, net.gorceag.hnreader.detail.WebFragment(url, bitmap, coords), "Detail")
+                        .commit()
+            }
             updateItemMenu(id)
-            hideButton()
+//            hideButton()
         }
     }
 
     private fun updateItemMenu(id: String) {
         menu.findItem(R.id.action_clear_visited).setVisible(false)
         menu.findItem(R.id.action_clear_favorites).setVisible(false)
+        menu.findItem(R.id.action_show_chart).setVisible(false)
         object : AsyncTask<String, Void, Boolean>() {
             override fun doInBackground(vararg params: String?): Boolean {
                 return HistoryApi.isInTable(id, Table.FAVORITES)
@@ -119,6 +127,7 @@ class MainActivity : AppCompatActivity() {
         menu.findItem(R.id.action_remove).setVisible(false)
         menu.findItem(R.id.action_clear_visited).setVisible(true)
         menu.findItem(R.id.action_clear_favorites).setVisible(true)
+        menu.findItem(R.id.action_show_chart).setVisible(true)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -147,6 +156,9 @@ class MainActivity : AppCompatActivity() {
             R.id.action_clear_visited -> {
                 clearVisited()
                 return true
+            }
+            R.id.action_show_chart -> {
+                showChart()
             }
         }
 
@@ -203,19 +215,19 @@ class MainActivity : AppCompatActivity() {
         }.execute()
     }
 
-    private fun hideButton() {
-        button.visibility = INVISIBLE
-    }
-
-    private fun showButton() {
-        button.visibility = VISIBLE
-    }
+//    private fun hideButton() {
+//        button.visibility = INVISIBLE
+//    }
+//
+//    private fun showButton() {
+//        button.visibility = VISIBLE
+//    }
 
     override fun onBackPressed() {
         val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
         if (fragment != null) {
             updateListMenu()
-            showButton()
+//            showButton()
             (fragment as AnimatedFragment).removeSelf(supportFragmentManager)
             return
         }

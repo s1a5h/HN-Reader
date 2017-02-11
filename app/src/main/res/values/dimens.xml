@@ -9,7 +9,7 @@
 
     <!-- graph parameters -->
     <dimen name="text_size">16dp</dimen>
-    <dimen name="padding">10dp</dimen>
+    <dimen name="padding">20dp</dimen>
     <dimen name="text_to_line_margin">10dp</dimen>
     <dimen name="max_number_distance">70dp</dimen>
     <dimen name="column_spacing">10dp</dimen>

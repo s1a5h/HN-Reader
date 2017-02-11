@@ -9,14 +9,15 @@ import java.util.*
 
 class GraphModel {
     val distance: Int
-    val data: Map<Int, Int>
+    val data: Array<Array<Int>>
 
     init {
         distance = 500
-        data = LinkedHashMap<Int, Int>()
-        data.put(50, Color.BLACK)
-        data.put(60, Color.GRAY)
-        data.put(102, Color.MAGENTA)
-        data.put(5, Color.BLUE)
+        data = arrayOf(
+                arrayOf(50, Color.BLACK),
+                arrayOf(60, Color.GRAY),
+                arrayOf(102, Color.MAGENTA),
+                arrayOf(5, Color.BLUE)
+        )
     }
 }

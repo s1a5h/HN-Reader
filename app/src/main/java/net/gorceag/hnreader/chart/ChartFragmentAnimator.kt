@@ -20,14 +20,17 @@ import java.util.concurrent.*
  * Created by slash on 2/5/17.
  */
 class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, val backgroundImage: Bitmap, val position: IntArray) : SurfaceView(fragment.activity), SurfaceHolder.Callback {
+
+    inner class ScaleNumberData(val value: String, val textX: Float, val textY: Float, val lineXStart: Float, val lineYStart: Float, val lineXEnd: Float, val lineYEnd: Float) {
+    }
+
     inner class Drawer(val holder: SurfaceHolder, val context: Context) : Thread() {
         lateinit var paint: Paint
-        lateinit var vNumbers: Array<String>
-        lateinit var hNumbers: Array<String>
-        var leftMargin: Float = 0f
-        var bottomMargin: Float = 0f
-        val topMargin: Float = context.resources.getDimension(R.dimen.padding) * 2
-        val rightMargin: Float = context.resources.getDimension(R.dimen.padding) * 2
+
+        lateinit var vScaleData: Array<ScaleNumberData>
+        lateinit var hScaleData: Array<ScaleNumberData>
+        lateinit var barsRect: Array<Float>
+        lateinit var pillars: Array<Bitmap>
         var isRunning = false
         var state = 1
         var progress = 0f
@@ -46,15 +49,63 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
         }
 
         fun initScreenRelatedData(width: Int, height: Int) {
-            var max = model.data.keys.max()
-            vNumbers = assembleRulerScale(height, if (max != null) max else 0)
-            max = model.distance
-            hNumbers = assembleRulerScale(width, if (max != null) max else 0)
-            setBottomMargin()
-            setLeftMargin()
+            vScaleData = getVScaleData(width, height)
+            hScaleData = getHScaleData(width, height)
+            barsRect = getBarsData(width, height)
+            pillars = getPillarBitmaps()
         }
 
-        private fun assembleRulerScale(length: Int, highestValue: Int): Array<String> {
+        private fun getVScaleData(width: Int, height: Int): Array<ScaleNumberData> {
+
+//            var max = model.data.keys.max()
+            var max = Array(model.data.size, { i -> model.data[i][0]}).max()
+            val vNumbers = getScaleNumbers(height, if (max != null) max else 0)
+            val padding: Float = context.resources.getDimension(R.dimen.padding)
+            val maxLenght = Array(vNumbers.size, { i -> paint.measureText(vNumbers[i]) }).max()
+            val maxNumberLength: Float = if (maxLenght != null) maxLenght else 0f
+            val topMargin = padding * 2
+            val rightMargin = padding * 2
+            val textToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
+            val textSize = context.resources.getDimension(R.dimen.text_size)
+            var numberOfSpaces = vNumbers.size - 1
+            var bottomMargin = padding + textSize + textToLine
+//            val step = height / numberOfSpaces - topMargin / numberOfSpaces - bottomMargin / numberOfSpaces
+            val step = (height - topMargin - bottomMargin) / numberOfSpaces
+            return Array(vNumbers.size, { index ->
+                val value = vNumbers[index]
+                val textX = padding + maxNumberLength - paint.measureText(value)
+                val lineY = topMargin + (vNumbers.size - index - 1) * step
+                val textY = lineY + context.resources.getDimension(R.dimen.text_size) / 2
+                val lineXStart = padding + maxNumberLength + context.resources.getDimension(R.dimen.text_to_line_margin) / 2
+                val lineXEnd = width - rightMargin
+                ScaleNumberData(value, textX, textY, lineXStart, lineY, lineXEnd, lineY)
+            })
+        }
+
+        private fun getHScaleData(widht: Int, height: Int): Array<ScaleNumberData> {
+
+            val hNumbers = getScaleNumbers(width, model.distance)
+
+            val vNumbers = Array(vScaleData.size, { i -> vScaleData[i].value })
+            val padding: Float = context.resources.getDimension(R.dimen.padding)
+            val maxLenght = Array(vNumbers.size, { i -> paint.measureText(vNumbers[i]) }).max()
+            val vNumberWidth: Float = if (maxLenght != null) maxLenght else 0f
+            val distanceToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
+            var numberOfSpaces = hNumbers.size - 1
+            val step = (width - padding * 3 - vNumberWidth - distanceToLine) / numberOfSpaces
+            return Array(hNumbers.size, { index ->
+                val value = hNumbers[index]
+                val textOffset = paint.measureText(value) / 2
+                val lineX = padding + vNumberWidth + distanceToLine + index * step
+                val textX = lineX - textOffset
+                val textY = height - padding
+                val lineYStart = height - padding - context.resources.getDimension(R.dimen.text_size) - distanceToLine
+                val lineYEnd = lineYStart + distanceToLine / 2
+                ScaleNumberData(value, textX, textY, lineX, lineYStart, lineX, lineYEnd)
+            })
+        }
+
+        private fun getScaleNumbers(length: Int, highestValue: Int): Array<String> {
             val maxSteps = length / context.resources.getDimension(R.dimen.max_number_distance)
             var step = 1
             while (highestValue / step > maxSteps) {
@@ -75,23 +126,44 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
             return (head + tail).toInt()
         }
 
-        private fun setBottomMargin() {
-            val resources = context.resources
-            val padding = resources.getDimension(R.dimen.padding)
-            val textSize = resources.getDimension(R.dimen.text_size)
-            val textToLine = resources.getDimension(R.dimen.text_to_line_margin)
-            bottomMargin = padding + textSize + textToLine
+        private fun getBarsData(width: Int, height: Int): Array<Float> {
+
+            val vNumbers = Array(vScaleData.size, { i -> vScaleData[i].value })
+            val maxLenght = Array(vNumbers.size, { i -> paint.measureText(vNumbers[i]) }).max()
+            val vNumberWidth: Float = if (maxLenght != null) maxLenght else 0f
+            val padding: Float = context.resources.getDimension(R.dimen.padding)
+            val distanceToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
+            val left = padding + vNumberWidth + distanceToLine
+            val bottom = padding + context.resources.getDimension(R.dimen.text_size) + distanceToLine
+            return arrayOf(left, padding, width - padding, height - bottom)
         }
 
-        private fun setLeftMargin() {
-            val resources = context.resources
-            val padding = resources.getDimension(R.dimen.padding)
-            var textWidth = Array(vNumbers.size, { i -> paint.measureText(vNumbers.get(i)) }).max()
-            if (textWidth == null) {
-                textWidth = 0f
-            }
-            val textToLine = resources.getDimension(R.dimen.text_to_line_margin)
-            leftMargin = padding + textWidth + textToLine
+        private fun getPillarBitmaps(): Array<Bitmap> {
+            val hPixels = hScaleData.last().lineXStart - hScaleData.first().lineXStart
+            val vPixels: Float = vScaleData.first().lineYStart - vScaleData.last().lineYStart
+            val hValue = hScaleData.last().value
+            val vValue: Float = vScaleData.last().value.toFloat()
+
+            val columnCount = model.data.size
+            val columnPadding = context.resources.getDimension(R.dimen.column_spacing) / 2
+            val imageColumnWidth = hPixels / columnCount
+            println("COLUMN WIDTH: " + imageColumnWidth)
+
+
+            val vMeter = vPixels / vValue
+            return Array(model.data.size, { index ->
+                val pillarModel = model.data[index]
+                val height = pillarModel[0] * vMeter
+                val bitmap = Bitmap.createBitmap(imageColumnWidth.toInt(), (height + columnPadding).toInt(), Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                println("BITMAP WIDTH: " + bitmap.width)
+                paint.setShadowLayer(10.0f, 0.0f, 2.0f, ContextCompat.getColor(context, R.color.black));
+                paint.color = pillarModel[1]
+                canvas.drawRect(columnPadding, columnPadding, imageColumnWidth.toInt() - columnPadding, height + columnPadding, paint)
+                paint.setShadowLayer(0f, 0f, 0f, 0)
+                paint.color = ContextCompat.getColor(context, R.color.black)
+                bitmap
+            })
         }
 
         private fun updateProgress(delta: Long) {
@@ -123,7 +195,7 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
                 val delta = startTime - oldStartTime
                 oldStartTime = startTime
                 updateProgress(delta)
-                showFps(delta)
+//                showFps(delta)
                 val canvas = holder.lockCanvas()
                 if (canvas != null) {
                     drawChoreography(canvas)
@@ -223,7 +295,7 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
             drawRulers(canvas)
             drawBars(canvas)
             paint.color = ContextCompat.getColor(context, R.color.neutral)
-            drawData(canvas)
+            drawData(canvas, progress)
         }
 
         private fun drawIdle(canvas: Canvas) {
@@ -232,7 +304,7 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
             drawRulers(canvas)
             drawBars(canvas)
             paint.color = ContextCompat.getColor(context, R.color.neutral)
-            drawData(canvas)
+            drawData(canvas, 1f)
         }
 
         private fun drawCollapsePillars(canvas: Canvas) {
@@ -241,7 +313,7 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
             drawRulers(canvas)
             drawBars(canvas)
             paint.color = ContextCompat.getColor(context, R.color.neutral)
-            drawData(canvas)
+            drawData(canvas, (1 - progress))
         }
 
         private fun drawFadeOutRulers(canvas: Canvas) {
@@ -279,39 +351,21 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
 
 
         private fun drawRulers(canvas: Canvas) {
-            val padding: Float = context.resources.getDimension(R.dimen.padding)
-            var numberOfSpaces = vNumbers.size - 1
-            val vStep = canvas.height / numberOfSpaces - topMargin / numberOfSpaces - bottomMargin / numberOfSpaces
-            numberOfSpaces = hNumbers.size - 1
-            val hStep = canvas.width / numberOfSpaces - rightMargin / numberOfSpaces - leftMargin / numberOfSpaces
-            drawVerticalRuler(canvas, vStep, padding)
-            drawHorizontalRuler(canvas, hStep, padding)
-        }
-
-        private fun drawVerticalRuler(canvas: Canvas, step: Float, padding: Float) {
-            for ((index, value) in vNumbers.withIndex()) {
-                val xOffset = paint.measureText(value) + context.resources.getDimension(R.dimen.text_to_line_margin)
-                val y = topMargin + (vNumbers.size - index - 1) * step
-                canvas.drawText(value, leftMargin - xOffset, y + context.resources.getDimension(R.dimen.text_size) / 2, paint)
-                canvas.drawLine(leftMargin - context.resources.getDimension(R.dimen.text_to_line_margin) / 2, y, canvas.width - padding, y, paint)
+            for (numberData in vScaleData) {
+                canvas.drawText(numberData.value, numberData.textX, numberData.textY, paint)
+                canvas.drawLine(numberData.lineXStart, numberData.lineYStart, numberData.lineXEnd, numberData.lineYEnd, paint)
             }
-        }
-
-        private fun drawHorizontalRuler(canvas: Canvas, step: Float, padding: Float) {
-            for ((index, value) in hNumbers.withIndex()) {
-                val xOffset = paint.measureText(value) / 2
-                val x = leftMargin + index * step
-                canvas.drawText(value, x - xOffset, canvas.height - padding, paint)
-                val y = canvas.height - bottomMargin
-                canvas.drawLine(x, y + context.resources.getDimension(R.dimen.text_to_line_margin) / 2, x, y, paint)
+            for (numberData in hScaleData) {
+                canvas.drawText(numberData.value, numberData.textX, numberData.textY, paint)
+                canvas.drawLine(numberData.lineXStart, numberData.lineYStart, numberData.lineXEnd, numberData.lineYEnd, paint)
             }
         }
 
         private fun drawBars(canvas: Canvas) {
-            val padding = context.resources.getDimension(R.dimen.padding)
-            canvas.drawLine(leftMargin, padding, leftMargin, canvas.height - bottomMargin, paint)
-            canvas.drawLine(leftMargin, canvas.height - bottomMargin, canvas.width - padding, canvas.height - bottomMargin, paint)
+            canvas.drawLine(barsRect[0], barsRect[1], barsRect[0], barsRect[3], paint)
+            canvas.drawLine(barsRect[0], barsRect[3], barsRect[2], barsRect[3], paint)
         }
+
 
         fun initiate() {
             isRunning = true
@@ -322,30 +376,23 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
             isRunning = false
         }
 
-        private fun drawData(canvas: Canvas) {
-            val hPixels = canvas.width - leftMargin - rightMargin
-            val vPixels = canvas.height - bottomMargin - topMargin
-            val hValue = hNumbers.last().toFloat()
-            val vValue = vNumbers.last().toFloat()
 
-            val columnCount = model.data.size
-            val columnSpacing = context.resources.getDimension(R.dimen.column_spacing)
-            val columnWidth = hPixels / columnCount - columnSpacing / columnCount - columnSpacing
+        private fun drawData(canvas: Canvas, progress: Float) {
 
-            val vMeter = vPixels / vValue
-            val bottom = canvas.height - bottomMargin
-            paint.setShadowLayer(10.0f, 0.0f, 2.0f, ContextCompat.getColor(context, R.color.black));
-            for ((index, key) in model.data.keys.withIndex()) {
-                val left = leftMargin + columnSpacing + index * (columnWidth + columnSpacing)
-                val top = canvas.height - key * vMeter - bottomMargin
-                val color = model.data.get(key)
-                if (color != null) {
-                    paint.color = color
-                }
-                canvas.drawRect(left, top, left + columnWidth, bottom, paint)
+            val vNumbers = Array(vScaleData.size, { i -> vScaleData[i].value })
+            val maxLenght = Array(vNumbers.size, { i -> paint.measureText(vNumbers[i]) }).max()
+            val vNumberWidth: Float = if (maxLenght != null) maxLenght else 0f
+            val padding = context.resources.getDimension(R.dimen.padding)
+            val textToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
+            val textSize = context.resources.getDimension(R.dimen.text_size)
+            val xOffset = padding + vNumberWidth + textToLine
+            val yOffset = padding + textSize + textToLine
+
+            for ((index, pillar) in pillars.withIndex()) {
+                val x = xOffset + index * pillar.width
+                val y = canvas.height - yOffset - pillar.height * progress
+                canvas.drawBitmap(pillar, x, y, paint)
             }
-            paint.setShadowLayer(0f, 0f, 0f, 0);
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
         }
     }
 
@@ -384,8 +431,6 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
 
     override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
         drawer.initScreenRelatedData(width, height)
-//        drawer.draw()
-
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder?) {

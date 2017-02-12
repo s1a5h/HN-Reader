@@ -1,33 +1,21 @@
 package net.gorceag.hnreader
 
-import android.app.Fragment
 import android.graphics.Bitmap
 import android.os.AsyncTask
 import android.os.Bundle
-import android.support.design.widget.FloatingActionButton
-import android.support.design.widget.Snackbar
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.Toolbar
-import android.view.View
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View.INVISIBLE
-import android.view.View.VISIBLE
-import android.webkit.WebViewFragment
-import android.widget.ImageView
 import net.gorceag.hnreader.chart.ChartFragment
 import net.gorceag.hnreader.db.HistoryApi
 import net.gorceag.hnreader.db.Table
-import net.gorceag.hnreader.detail.WebFragment
 import net.gorceag.hnreader.list.ArticleListFragment
-import net.gorceag.hnreader.model.Article
-import java.util.*
 
 class MainActivity : AppCompatActivity() {
     lateinit var menu: Menu
     var lastArticleId: String = ""
     lateinit var articleListFragment: ArticleListFragment
-//    lateinit var button: FloatingActionButton
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,35 +29,27 @@ class MainActivity : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
                 .replace(R.id.list_content_container, articleListFragment, "List")
                 .commit()
+    }
 
-//        button = findViewById(R.id.fab) as FloatingActionButton
-//        button.setOnClickListener { view ->
-//            showChart()
-//        }
+    private fun getBackGroundImage(): Bitmap? {
+        articleListFragment.view?.setDrawingCacheEnabled(true);
+        val bitmap = articleListFragment.view?.getDrawingCache(true)?.copy(
+                Bitmap.Config.ARGB_8888, false);
+        articleListFragment.view?.destroyDrawingCache();
+        return bitmap
     }
 
     private fun showChart() {
         val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
-        if (fragment == null) {
-            articleListFragment.view?.setDrawingCacheEnabled(true);
-            val bitmap = articleListFragment.view?.getDrawingCache(true)?.copy(
-                    Bitmap.Config.ARGB_8888, false);
-            articleListFragment.view?.destroyDrawingCache();
-
-//            button = findViewById(R.id.fab) as FloatingActionButton
-            var dimens = IntArray(2)
-//            button.getLocationInWindow(dimens)
-            if (bitmap != null) {
-                supportFragmentManager.beginTransaction()
-                        .add(R.id.content_container, ChartFragment(bitmap, dimens), "Graph")
-                        .commit()
-            }
-            updateChartMenu()
+        val bitmap = getBackGroundImage()
+        if (fragment == null && bitmap != null) {
+            supportFragmentManager.beginTransaction()
+                    .add(R.id.content_container, ChartFragment(bitmap), "Graph")
+                    .commit()
         }
     }
 
     fun showDetail(id: String, url: String, coords: Array<Float>) {
-
         val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
         if (fragment == null) {
             lastArticleId = id
@@ -85,26 +65,22 @@ class MainActivity : AppCompatActivity() {
             }.execute()
 
             articleListFragment.view?.setDrawingCacheEnabled(true);
-            val bitmap = articleListFragment.view?.getDrawingCache(true)?.copy(
-                    Bitmap.Config.ARGB_8888, false);
-            articleListFragment.view?.destroyDrawingCache();
+            val bitmap = getBackGroundImage()
             if (bitmap != null) {
                 supportFragmentManager.beginTransaction()
                         .add(R.id.content_container, net.gorceag.hnreader.detail.WebFragment(url, bitmap, coords), "Detail")
                         .commit()
             }
-            updateItemMenu(id)
-//            hideButton()
         }
     }
 
-    private fun updateItemMenu(id: String) {
+    fun updateItemMenu() {
         menu.findItem(R.id.action_clear_visited).setVisible(false)
         menu.findItem(R.id.action_clear_favorites).setVisible(false)
         menu.findItem(R.id.action_show_chart).setVisible(false)
         object : AsyncTask<String, Void, Boolean>() {
             override fun doInBackground(vararg params: String?): Boolean {
-                return HistoryApi.isInTable(id, Table.FAVORITES)
+                return HistoryApi.isInTable(lastArticleId, Table.FAVORITES)
             }
 
             override fun onPostExecute(result: Boolean) {
@@ -151,19 +127,19 @@ class MainActivity : AppCompatActivity() {
 
         when (id) {
             R.id.action_add -> {
-                addToFavorites()
+                setToFavorites(true)
                 return true
             }
             R.id.action_remove -> {
-                removeFromFavorites()
+                setToFavorites(false)
                 return true
             }
             R.id.action_clear_favorites -> {
-                clearFavorites()
+                clearHistory(Table.FAVORITES)
                 return true
             }
             R.id.action_clear_visited -> {
-                clearVisited()
+                clearHistory(Table.VISITED)
                 return true
             }
             R.id.action_show_chart -> {
@@ -174,36 +150,27 @@ class MainActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    private fun addToFavorites() {
+    private fun setToFavorites(isFavorite: Boolean) {
         object : AsyncTask<String, Void, Unit>() {
             override fun doInBackground(vararg params: String?) {
-                HistoryApi.insert(lastArticleId, Table.FAVORITES)
+                if (isFavorite) {
+                    HistoryApi.insert(lastArticleId, Table.FAVORITES)
+                } else {
+                    HistoryApi.delete(lastArticleId, Table.FAVORITES)
+                }
             }
 
             override fun onPostExecute(result: Unit?) {
-                updateItemMenu(lastArticleId)
+                updateItemMenu()
                 articleListFragment.updateModel(lastArticleId)
             }
         }.execute()
     }
 
-    private fun removeFromFavorites() {
+    private fun clearHistory(table: Table) {
         object : AsyncTask<String, Void, Unit>() {
             override fun doInBackground(vararg params: String?) {
-                HistoryApi.delete(lastArticleId, Table.FAVORITES)
-            }
-
-            override fun onPostExecute(result: Unit?) {
-                updateItemMenu(lastArticleId)
-                articleListFragment.updateModel(lastArticleId)
-            }
-        }.execute()
-    }
-
-    private fun clearFavorites() {
-        object : AsyncTask<String, Void, Unit>() {
-            override fun doInBackground(vararg params: String?) {
-                HistoryApi.clear(Table.FAVORITES)
+                HistoryApi.clear(table)
             }
 
             override fun onPostExecute(result: Unit?) {
@@ -211,32 +178,11 @@ class MainActivity : AppCompatActivity() {
             }
         }.execute()
     }
-
-    private fun clearVisited() {
-        object : AsyncTask<String, Void, Unit>() {
-            override fun doInBackground(vararg params: String?) {
-                HistoryApi.clear(Table.VISITED)
-            }
-
-            override fun onPostExecute(result: Unit?) {
-                articleListFragment.updateModel()
-            }
-        }.execute()
-    }
-
-//    private fun hideButton() {
-//        button.visibility = INVISIBLE
-//    }
-//
-//    private fun showButton() {
-//        button.visibility = VISIBLE
-//    }
 
     override fun onBackPressed() {
-        val fragment = supportFragmentManager.findFragmentById(R.id.content_container)
+        val fragment = supportFragmentManager.findFragmentById(R.id.content_container) as AnimatedFragment
         if (fragment != null) {
-//            showButton()
-            (fragment as AnimatedFragment).removeSelf(supportFragmentManager)
+            fragment.removeSelf(supportFragmentManager)
             return
         }
         super.onBackPressed()

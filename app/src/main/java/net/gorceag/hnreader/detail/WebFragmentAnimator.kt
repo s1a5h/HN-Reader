@@ -9,12 +9,13 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
+import net.gorceag.hnreader.AnimatorCallback
 import net.gorceag.hnreader.R
 
 /**
  * Created by slash on 2/9/17.
  */
-class WebFragmentAnimator(val fragment: WebFragment, val backgroundImage: Bitmap, var position: Array<Float>) : SurfaceView(fragment.activity), SurfaceHolder.Callback {
+class WebFragmentAnimator(val fragment: AnimatorCallback, activity: Context, val backgroundImage: Bitmap, var position: Array<Float>) : SurfaceView(activity), SurfaceHolder.Callback {
 
     inner class Drawer(val holder: SurfaceHolder, val context: Context) : Thread() {
         lateinit var paint: Paint
@@ -73,7 +74,10 @@ class WebFragmentAnimator(val fragment: WebFragment, val backgroundImage: Bitmap
             progress = 0f
             when (state) {
                 1 -> enableParentBackground(true)
-                2 -> isClickable = false
+                2 -> {
+                    isClickable = false
+                    sendIdleMessage()
+                }
                 3 -> isClickable = true
                 4 -> enableParentBackground(false)
                 6 -> terminateParent()
@@ -83,12 +87,17 @@ class WebFragmentAnimator(val fragment: WebFragment, val backgroundImage: Bitmap
 
         private fun enableParentBackground(enable: Boolean) {
             val handler = Handler(context.mainLooper)
-            handler.post { if (enable) fragment.enableBackGround() else fragment.disableBackGround() }
+            handler.post { fragment.enableBackgroundContent(enable) }
+        }
+
+        private fun sendIdleMessage() {
+            val handler = Handler(context.mainLooper)
+            handler.post { fragment.initiated() }
         }
 
         private fun terminateParent() {
             val handler = Handler(context.mainLooper)
-            handler.post { fragment.terminate() }
+            handler.post { fragment.terminated() }
         }
 
         override fun run() {
@@ -269,7 +278,7 @@ class WebFragmentAnimator(val fragment: WebFragment, val backgroundImage: Bitmap
     val weight: Float
 
     val mSec: Long = (1000f / fps).toLong()
-    var drawer: Drawer = Drawer(holder, fragment.activity)
+    var drawer: Drawer = Drawer(holder, activity)
 
     init {
         val out: TypedValue = TypedValue()

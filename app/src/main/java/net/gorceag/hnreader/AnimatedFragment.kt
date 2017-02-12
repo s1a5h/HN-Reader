@@ -9,4 +9,5 @@ import android.support.v4.app.FragmentManager
  */
 abstract class AnimatedFragment: Fragment() {
     abstract fun removeSelf(fragmentManager: FragmentManager)
+
 }

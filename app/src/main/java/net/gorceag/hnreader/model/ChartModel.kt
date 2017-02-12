@@ -7,15 +7,13 @@ import java.util.*
  * Created by slash on 2/8/17.
  */
 
-class GraphModel {
+class ChartModel {
     val rand = Random()
-    val distance: Int
     val data: Array<Array<Int>>
 
     init {
-        distance = randomInt(50, 10000)
         val ceiling = randomInt(20, 4000)
-        data = Array(randomInt(3, 15), { arrayOf(randomInt(ceiling), randomColor()) })
+        data = Array(randomInt(2, 10), { arrayOf(randomInt(ceiling), randomColor()) })
     }
 
     private fun randomColor(): Int {
@@ -29,7 +27,7 @@ class GraphModel {
 
     private fun randomInt(from: Int, toSentinel: Int): Int {
         val range = toSentinel - from
-        return rand.nextInt(range) + from
+        return if (range != 0) rand.nextInt(range) + from else from
     }
 
     private fun randomInt(toSentinel: Int): Int {

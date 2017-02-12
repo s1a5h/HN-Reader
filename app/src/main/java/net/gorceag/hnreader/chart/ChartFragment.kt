@@ -11,41 +11,46 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import net.gorceag.hnreader.AnimatedFragment
+import net.gorceag.hnreader.AnimatorCallback
 import net.gorceag.hnreader.MainActivity
 import net.gorceag.hnreader.R
-import net.gorceag.hnreader.model.GraphModel
+import net.gorceag.hnreader.model.ChartModel
 import net.gorceag.kotlinblade.ChartFragmentAnimator
 import java.util.*
 
 /**
  * Created by slash on 2/6/17.
  */
-class ChartFragment(val background: Bitmap, val position: IntArray) : AnimatedFragment() {
+class ChartFragment(val background: Bitmap) : AnimatedFragment(), AnimatorCallback {
 
-    lateinit var surfaceContainer: FrameLayout
-    lateinit var animator: ChartFragmentAnimator
-
-    private fun dummyData(): GraphModel {
-        return GraphModel()
-    }
+    private lateinit var animator: ChartFragmentAnimator
 
     override fun onCreateView(inflater: LayoutInflater?, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         var root = inflater?.inflate(R.layout.fragment_graph, container, false)
-        surfaceContainer = root?.findViewById(R.id.surface_container) as FrameLayout
-        animator = ChartFragmentAnimator(this, dummyData(), background, position)
+        val surfaceContainer = root?.findViewById(R.id.surface_container) as FrameLayout
+        animator = ChartFragmentAnimator(this, activity, ChartModel(), background)
         animator.setZOrderOnTop(true)
         animator.isClickable = true
         surfaceContainer.addView(animator)
         return root
     }
 
-    fun terminate() {
+    override fun terminated() {
         (activity as MainActivity).updateListMenu()
         fragmentManager.beginTransaction()
                 .remove(this)
                 .commit()
     }
+
+    override fun initiated() {
+        (activity as MainActivity).updateChartMenu()
+    }
+
     override fun removeSelf(fragmentManager: FragmentManager) {
         animator.roundUp()
+    }
+
+    override fun enableBackgroundContent(visible: Boolean) {
+        throw UnsupportedOperationException("not implemented")
     }
 }

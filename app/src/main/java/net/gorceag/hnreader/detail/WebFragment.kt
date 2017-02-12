@@ -15,6 +15,7 @@ import android.webkit.WebViewClient
 import android.webkit.WebViewFragment
 import android.widget.FrameLayout
 import net.gorceag.hnreader.AnimatedFragment
+import net.gorceag.hnreader.AnimatorCallback
 import net.gorceag.hnreader.MainActivity
 import net.gorceag.hnreader.R
 import net.gorceag.kotlinblade.ChartFragmentAnimator
@@ -23,7 +24,7 @@ import net.gorceag.kotlinblade.ChartFragmentAnimator
  * Created by slash on 2/6/17.
  */
 
-class WebFragment(val url: String, val background: Bitmap, val coords: Array<Float>) : AnimatedFragment() {
+class WebFragment(val url: String, val background: Bitmap, val coords: Array<Float>) : AnimatedFragment(), AnimatorCallback {
 
     lateinit var webView: WebView
     lateinit var animator: WebFragmentAnimator
@@ -36,26 +37,26 @@ class WebFragment(val url: String, val background: Bitmap, val coords: Array<Flo
         })
         webView.visibility = INVISIBLE
         val container = root?.findViewById(R.id.animator_container) as FrameLayout
-        animator = WebFragmentAnimator(this, background, coords)
+        animator = WebFragmentAnimator(this, activity, background, coords)
         animator.setZOrderOnTop(true)
         animator.isClickable = true
         container.addView(animator)
         return root
     }
 
-    fun enableBackGround() {
-        webView.visibility = VISIBLE
+    override fun enableBackgroundContent(visible: Boolean) {
+        webView.visibility = if (visible) VISIBLE else INVISIBLE
     }
 
-    fun disableBackGround() {
-        webView.visibility = INVISIBLE
-    }
-
-    fun terminate() {
+    override fun terminated() {
         (activity as MainActivity).updateListMenu()
         fragmentManager.beginTransaction()
                 .remove(this)
                 .commit()
+    }
+
+    override fun initiated() {
+        (activity as MainActivity).updateItemMenu()
     }
 
     override fun onResume() {

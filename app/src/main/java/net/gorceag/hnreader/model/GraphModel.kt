@@ -8,16 +8,31 @@ import java.util.*
  */
 
 class GraphModel {
+    val rand = Random()
     val distance: Int
     val data: Array<Array<Int>>
 
     init {
-        distance = 500
-        data = arrayOf(
-                arrayOf(50, Color.BLACK),
-                arrayOf(60, Color.GRAY),
-                arrayOf(102, Color.MAGENTA),
-                arrayOf(5, Color.BLUE)
+        distance = randomInt(50, 10000)
+        val ceiling = randomInt(20, 4000)
+        data = Array(randomInt(3, 15), { arrayOf(randomInt(ceiling), randomColor()) })
+    }
+
+    private fun randomColor(): Int {
+        return Color.argb(
+                255,
+                randomInt(256),
+                randomInt(256),
+                randomInt(256)
         )
+    }
+
+    private fun randomInt(from: Int, toSentinel: Int): Int {
+        val range = toSentinel - from
+        return rand.nextInt(range) + from
+    }
+
+    private fun randomInt(toSentinel: Int): Int {
+        return randomInt(0, toSentinel)
     }
 }

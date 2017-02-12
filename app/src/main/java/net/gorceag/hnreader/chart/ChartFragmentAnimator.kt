@@ -9,6 +9,8 @@ import android.support.v4.content.ContextCompat
 import android.util.TypedValue
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import net.gorceag.hnreader.R
 import net.gorceag.hnreader.chart.ChartFragment
 import net.gorceag.hnreader.model.GraphModel
@@ -25,20 +27,25 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
     }
 
     inner class Drawer(val holder: SurfaceHolder, val context: Context) : Thread() {
-        lateinit var paint: Paint
+        var animationState = 1
 
-        lateinit var vScaleData: Array<ScaleNumberData>
-        lateinit var hScaleData: Array<ScaleNumberData>
-        lateinit var barsRect: Array<Float>
-        lateinit var pillars: Array<Bitmap>
-        var isRunning = false
-        var state = 1
-        var progress = 0f
+        private lateinit var paint: Paint
+        private lateinit var vScaleData: Array<ScaleNumberData>
+        private lateinit var hScaleData: Array<ScaleNumberData>
+        private lateinit var grid: Array<Array<Float>>
+        private lateinit var barsRect: Array<Float>
+        private lateinit var pillars: Array<Bitmap>
+        private var isRunning = false
+        private var progress = 0f
+
+        private val accelerator = AccelerateInterpolator(2f)
+        private val decelerator = DecelerateInterpolator(2f)
 
         init {
-//            holder.setFormat(PixelFormat.TRANSPARENT);
+            holder.setFormat(PixelFormat.TRANSPARENT);
             setPaint()
             paint.textSize = context.resources.getDimension(R.dimen.text_size)
+            paint.strokeWidth = context.resources.getDimension(R.dimen.line_width)
         }
 
         private fun setPaint() {
@@ -49,13 +56,14 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
         }
 
         fun initScreenRelatedData(width: Int, height: Int) {
-            vScaleData = getVScaleData(width, height)
-            hScaleData = getHScaleData(width, height)
+            vScaleData = buildVScale(width, height)
+            grid = buildGrid(width, height)
+            hScaleData = buildHScale(width, height)
             barsRect = getBarsData(width, height)
             pillars = getPillarBitmaps()
         }
 
-        private fun getVScaleData(width: Int, height: Int): Array<ScaleNumberData> {
+        private fun buildVScale(width: Int, height: Int): Array<ScaleNumberData> {
 
 //            var max = model.data.keys.max()
             var max = Array(model.data.size, { i -> model.data[i][0]}).max()
@@ -76,13 +84,39 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
                 val textX = padding + maxNumberLength - paint.measureText(value)
                 val lineY = topMargin + (vNumbers.size - index - 1) * step
                 val textY = lineY + context.resources.getDimension(R.dimen.text_size) / 2
-                val lineXStart = padding + maxNumberLength + context.resources.getDimension(R.dimen.text_to_line_margin) / 2
-                val lineXEnd = width - rightMargin
+                val lineXStart = padding + maxNumberLength + textToLine / 2
+                val lineXEnd = padding + maxNumberLength + textToLine
                 ScaleNumberData(value, textX, textY, lineXStart, lineY, lineXEnd, lineY)
             })
         }
 
-        private fun getHScaleData(widht: Int, height: Int): Array<ScaleNumberData> {
+
+        private fun buildGrid(width: Int, height: Int): Array<Array<Float>> {
+
+//            var max = model.data.keys.max()
+            var max = Array(model.data.size, { i -> model.data[i][0]}).max()
+            val vNumbers = getScaleNumbers(height, if (max != null) max else 0)
+            val padding: Float = context.resources.getDimension(R.dimen.padding)
+            val maxLenght = Array(vNumbers.size, { i -> paint.measureText(vNumbers[i]) }).max()
+            val maxNumberLength: Float = if (maxLenght != null) maxLenght else 0f
+            val topMargin = padding * 2
+            val rightMargin = padding * 2
+            val textToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
+            val textSize = context.resources.getDimension(R.dimen.text_size)
+            var numberOfSpaces = vNumbers.size - 1
+            var bottomMargin = padding + textSize + textToLine
+//            val step = height / numberOfSpaces - topMargin / numberOfSpaces - bottomMargin / numberOfSpaces
+            val step = (height - topMargin - bottomMargin) / numberOfSpaces
+            return Array(vNumbers.size, { index ->
+                val value = vNumbers[index]
+                val lineY = topMargin + (vNumbers.size - index - 1) * step
+                val lineXStart = padding + maxNumberLength + textToLine
+                val lineXEnd = width - rightMargin
+                arrayOf(lineXStart, lineY, lineXEnd, lineY)
+            })
+        }
+
+        private fun buildHScale(width: Int, height: Int): Array<ScaleNumberData> {
 
             val hNumbers = getScaleNumbers(width, model.distance)
 
@@ -147,7 +181,6 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
             val columnCount = model.data.size
             val columnPadding = context.resources.getDimension(R.dimen.column_spacing) / 2
             val imageColumnWidth = hPixels / columnCount
-            println("COLUMN WIDTH: " + imageColumnWidth)
 
 
             val vMeter = vPixels / vValue
@@ -156,8 +189,7 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
                 val height = pillarModel[0] * vMeter
                 val bitmap = Bitmap.createBitmap(imageColumnWidth.toInt(), (height + columnPadding).toInt(), Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bitmap)
-                println("BITMAP WIDTH: " + bitmap.width)
-                paint.setShadowLayer(10.0f, 0.0f, 2.0f, ContextCompat.getColor(context, R.color.black));
+                paint.setShadowLayer(10.0f, 0.0f, 2.0f, ContextCompat.getColor(context, R.color.black))
                 paint.color = pillarModel[1]
                 canvas.drawRect(columnPadding, columnPadding, imageColumnWidth.toInt() - columnPadding, height + columnPadding, paint)
                 paint.setShadowLayer(0f, 0f, 0f, 0)
@@ -167,7 +199,7 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
         }
 
         private fun updateProgress(delta: Long) {
-            when (state) {
+            when (animationState) {
                 1, 2, 3, 5, 6, 7 -> progress += (delta.toFloat() / avgAnimationStepTime)
             }
             if (progress >= 1) {
@@ -177,47 +209,16 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
 
         fun updateState() {
             progress = 0f
-            when (state) {
+            when (animationState) {
                 7 -> terminateParent()
             }
-            state++
+            animationState++
         }
 
         private fun terminateParent() {
             val handler = Handler(context.mainLooper)
             handler.post { fragment.terminate() }
         }
-
-        override fun run() {
-            var oldStartTime = System.currentTimeMillis()
-            while (isRunning) {
-                val startTime = System.currentTimeMillis()
-                val delta = startTime - oldStartTime
-                oldStartTime = startTime
-                updateProgress(delta)
-//                showFps(delta)
-                val canvas = holder.lockCanvas()
-                if (canvas != null) {
-                    drawChoreography(canvas)
-                    holder.unlockCanvasAndPost(canvas)
-                }
-                manageWait(startTime)
-            }
-        }
-
-        private fun drawChoreography(canvas: Canvas) {
-            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-            when (state) {
-                1 -> drawBackgroundExpand(canvas)
-                2 -> drawFadeInRulers(canvas)
-                3 -> drawRisePillars(canvas)
-                4 -> drawIdle(canvas)
-                5 -> drawCollapsePillars(canvas)
-                6 -> drawFadeOutRulers(canvas)
-                7 -> drawBackgroundCollapse(canvas)
-            }
-        }
-
 
         private fun showFps(delta: Long) {
             val cores = Runtime.getRuntime().availableProcessors()
@@ -236,152 +237,132 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
             }
         }
 
+        override fun run() {
+            var oldStartTime = System.currentTimeMillis()
+            while (isRunning) {
+                val startTime = System.currentTimeMillis()
+                val delta = startTime - oldStartTime
+                oldStartTime = startTime
+//                showFps(delta)
+                updateProgress(delta)
+                updateView()
+                manageWait(startTime)
+            }
+        }
 
-        private fun getPath(canvas: Canvas, drawProgress: Float): Path {
 
+        private fun updateView() {
+            val canvas = holder.lockCanvas()
+            if (canvas != null) {
+                drawChoreography(canvas)
+                holder.unlockCanvasAndPost(canvas)
+            }
+        }
+
+        private fun drawChoreography(canvas: Canvas) {
+            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+            when (animationState) {
+                1 -> drawBackground(canvas, accelerator.getInterpolation(progress))
+                2 -> drawEmptyChart(canvas, progress)
+                3 -> drawFilledChart(canvas, decelerator.getInterpolation(progress))
+                4 -> drawFilledChart(canvas, 1f)
+                5 -> drawFilledChart(canvas, accelerator.getInterpolation(1 - progress))
+                6 -> drawEmptyChart(canvas, 1 - progress)
+                7 -> drawBackground(canvas, decelerator.getInterpolation(1 - progress))
+            }
+        }
+
+        private fun buildPath(canvas: Canvas, drawProgress: Float): Path {
             val width = canvas.width.toFloat()
-            val height = canvas.height.toFloat()
             val xStep = width * weight
             val xMiddle = width / 2
-            val yStrafeEnd = height * drawProgress
+            val yStrafeEnd = canvas.height.toFloat() * drawProgress
             val yStrafeMiddle = yStrafeEnd * 1.2f
 
             val path = Path()
             path.moveTo(0f, 0f)
             path.lineTo(width, 0f)
             path.lineTo(width, yStrafeEnd)
-
             path.cubicTo(width, yStrafeEnd, width - xStep, yStrafeMiddle, xMiddle, yStrafeMiddle)
             path.cubicTo(xMiddle, yStrafeMiddle, xStep, yStrafeMiddle, 0f, yStrafeEnd)
             path.lineTo(0f, 0f)
             return path
         }
 
-        private fun drawBackgroundExpand(canvas: Canvas) {
-            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
-            val path = getPath(canvas, progress)
-
+        private fun buildColor(progress: Float): Int {
             val fromColor = ContextCompat.getColor(context, R.color.colorPrimary)
             val toColor = ContextCompat.getColor(context, R.color.neutral)
             val redDiff = Color.red(toColor) - Color.red(fromColor)
             val greenDiff = Color.green(toColor) - Color.green(fromColor)
             val blueDiff = Color.blue(toColor) - Color.blue(fromColor)
 
-            val color = Color.argb(
+            return Color.argb(
                     255,
                     Color.red(fromColor) + (redDiff * progress).toInt(),
                     Color.green(fromColor) + (greenDiff * progress).toInt(),
                     Color.blue(fromColor) + (blueDiff * progress).toInt()
-            );
-
-            paint.color = color
-            canvas.drawPath(path, paint)
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
+            )
         }
 
-        private fun drawFadeInRulers(canvas: Canvas) {
-            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
+        private fun drawBackground(canvas: Canvas, progress: Float) {
+            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
+            val path = buildPath(canvas, progress)
+            paint.color = buildColor(progress)
+            canvas.drawPath(path, paint)
+        }
+
+        private fun drawEmptyChart(canvas: Canvas, progress: Float) {
+            canvas.drawColor(ContextCompat.getColor(context, R.color.neutral))
+            drawGrid(canvas, progress)
+            drawScale(canvas, progress)
+            drawBars(canvas, progress)
+        }
+
+
+        private fun drawFilledChart(canvas: Canvas, progress: Float) {
+            canvas.drawColor(ContextCompat.getColor(context, R.color.neutral))
+            drawGrid(canvas, 1f)
+            drawData(canvas, progress)
+            drawScale(canvas, 1f)
+            drawBars(canvas, 1f)
+        }
+
+        private fun drawGrid(canvas: Canvas, progress: Float) {
             paint.color = ContextCompat.getColor(context, R.color.black)
             paint.alpha = (255 * progress).toInt()
-            drawRulers(canvas)
-            drawBars(canvas)
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
+            for (line in grid) {
+                canvas.drawLine(line[0], line[1], line[2], line[3], paint)
+            }
             paint.alpha = 255
         }
 
-        private fun drawRisePillars(canvas: Canvas) {
-            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
-            paint.color = ContextCompat.getColor(context, R.color.black)
-            drawRulers(canvas)
-            drawBars(canvas)
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
-            drawData(canvas, progress)
+        private fun drawScaleNumber(canvas: Canvas, numberData: ScaleNumberData) {
+            canvas.drawText(numberData.value, numberData.textX, numberData.textY, paint)
+            canvas.drawLine(numberData.lineXStart, numberData.lineYStart, numberData.lineXEnd, numberData.lineYEnd, paint)
         }
 
-        private fun drawIdle(canvas: Canvas) {
-            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
+        private fun drawScale(canvas: Canvas, progress: Float) {
             paint.color = ContextCompat.getColor(context, R.color.black)
-            drawRulers(canvas)
-            drawBars(canvas)
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
-            drawData(canvas, 1f)
-        }
-
-        private fun drawCollapsePillars(canvas: Canvas) {
-            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
-            paint.color = ContextCompat.getColor(context, R.color.black)
-            drawRulers(canvas)
-            drawBars(canvas)
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
-            drawData(canvas, (1 - progress))
-        }
-
-        private fun drawFadeOutRulers(canvas: Canvas) {
-            canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
-            paint.color = ContextCompat.getColor(context, R.color.black)
-            paint.alpha = (255 * (1 - progress)).toInt()
-            drawRulers(canvas)
-            drawBars(canvas)
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
+            paint.alpha = (255 * progress).toInt()
+            vScaleData.forEach { drawScaleNumber(canvas, it) }
+            hScaleData.forEach { drawScaleNumber(canvas, it) }
             paint.alpha = 255
         }
 
-        private fun drawBackgroundCollapse(canvas: Canvas) {
+        private fun drawBars(canvas: Canvas, progress: Float) {
+            paint.color = ContextCompat.getColor(context, R.color.black)
+            paint.alpha = (255 * progress).toInt()
+            paint.strokeWidth = context.resources.getDimension(R.dimen.bar_line_width)
 
-            canvas.drawBitmap(backgroundImage, 0f, 0f, paint)
-            val path = getPath(canvas, (1 - progress))
-
-            val fromColor = ContextCompat.getColor(context, R.color.colorPrimary)
-            val toColor = ContextCompat.getColor(context, R.color.neutral)
-            val redDiff = Color.red(toColor) - Color.red(fromColor)
-            val greenDiff = Color.green(toColor) - Color.green(fromColor)
-            val blueDiff = Color.blue(toColor) - Color.blue(fromColor)
-
-            val color = Color.argb(
-                    255,
-                    Color.red(fromColor) + (redDiff * (1 - progress)).toInt(),
-                    Color.green(fromColor) + (greenDiff * (1 - progress)).toInt(),
-                    Color.blue(fromColor) + (blueDiff * (1 - progress)).toInt()
-            )
-
-            paint.color = color
-            canvas.drawPath(path, paint)
-            paint.color = ContextCompat.getColor(context, R.color.neutral)
-        }
-
-
-        private fun drawRulers(canvas: Canvas) {
-            for (numberData in vScaleData) {
-                canvas.drawText(numberData.value, numberData.textX, numberData.textY, paint)
-                canvas.drawLine(numberData.lineXStart, numberData.lineYStart, numberData.lineXEnd, numberData.lineYEnd, paint)
-            }
-            for (numberData in hScaleData) {
-                canvas.drawText(numberData.value, numberData.textX, numberData.textY, paint)
-                canvas.drawLine(numberData.lineXStart, numberData.lineYStart, numberData.lineXEnd, numberData.lineYEnd, paint)
-            }
-        }
-
-        private fun drawBars(canvas: Canvas) {
             canvas.drawLine(barsRect[0], barsRect[1], barsRect[0], barsRect[3], paint)
             canvas.drawLine(barsRect[0], barsRect[3], barsRect[2], barsRect[3], paint)
+            paint.strokeWidth = context.resources.getDimension(R.dimen.line_width)
+            paint.alpha = 255
         }
-
-
-        fun initiate() {
-            isRunning = true
-            start()
-        }
-
-        fun terminate() {
-            isRunning = false
-        }
-
 
         private fun drawData(canvas: Canvas, progress: Float) {
-
             val vNumbers = Array(vScaleData.size, { i -> vScaleData[i].value })
-            val maxLenght = Array(vNumbers.size, { i -> paint.measureText(vNumbers[i]) }).max()
-            val vNumberWidth: Float = if (maxLenght != null) maxLenght else 0f
+            val vNumberWidth: Float = Array(vNumbers.size, { i -> paint.measureText(vNumbers[i]) }).max() ?: 0f
             val padding = context.resources.getDimension(R.dimen.padding)
             val textToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
             val textSize = context.resources.getDimension(R.dimen.text_size)
@@ -393,7 +374,19 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
                 val y = canvas.height - yOffset - pillar.height * progress
                 canvas.drawBitmap(pillar, x, y, paint)
             }
+            paint.color = ContextCompat.getColor(context, R.color.neutral)
+            canvas.drawRect(0f, canvas.height - yOffset, canvas.width.toFloat(), canvas.height.toFloat(), paint)
         }
+
+        fun initiate() {
+            isRunning = true
+            start()
+        }
+
+        fun terminate() {
+            isRunning = false
+        }
+
     }
 
     val fps: Int = context.resources.getInteger(R.integer.fps)
@@ -412,7 +405,7 @@ class ChartFragmentAnimator(val fragment: ChartFragment, val model: GraphModel, 
     }
 
     fun roundUp() {
-        if (drawer.state == 4) {
+        if (drawer.animationState == 4) {
             drawer.updateState()
         }
     }

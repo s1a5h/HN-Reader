@@ -16,7 +16,7 @@ import java.util.*
 /**
  * Created by slash on 2/9/17.
  */
-@RunWith(MockitoJUnitRunner::class)
+
 class ArticleListAdapterTest {
     private val firstId = "123"
     private val secondId = "456"

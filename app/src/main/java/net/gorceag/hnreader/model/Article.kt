@@ -2,6 +2,8 @@ package net.gorceag.hnreader.model
 
 /**
  * Created by slash on 2/6/17.
+ *
+ * A model used primarily by the ArticleListAdapter
  */
 
 class Article(val id: String) {

@@ -21,6 +21,9 @@ import java.util.*
 
 /**
  * Created by slash on 2/6/17.
+ *
+ * The fragment displays data only after the list is received from the server
+ * May benefit from an empty model while the article ids are being fetched
  */
 
 class ArticleListFragment : Fragment() {
@@ -59,6 +62,7 @@ class ArticleListFragment : Fragment() {
             override fun doInBackground(vararg params: String?) {
                 val visited = HistoryApi.getList(Table.VISITED)
                 val favorites = HistoryApi.getList(Table.FAVORITES)
+                favorites.forEach { println("FAVORITE: " + it) }
                 updateHistory(visited, favorites, articles)
             }
 
@@ -70,13 +74,13 @@ class ArticleListFragment : Fragment() {
             }
 
             private fun updateVisited(article: Article, visited: ArrayList<String>) {
-                val id = visited.firstOrNull {it == article.id}
+                val id = visited.firstOrNull { it == article.id }
                 if (id != null) article.isVisited = true
             }
 
             private fun updateFavorite(article: Article, favorites: ArrayList<String>) {
-                val id = favorites.firstOrNull {it == article.id}
-                if (id != null) article.isVisited = true
+                val id = favorites.firstOrNull { it == article.id }
+                if (id != null) article.isFavorite = true
             }
 
             override fun onPostExecute(result: Unit?) {

@@ -1,6 +1,5 @@
 package net.gorceag.hnreader.list
 
-import android.graphics.Bitmap
 import android.os.AsyncTask
 import android.support.v4.content.ContextCompat
 import android.widget.TextView
@@ -23,6 +22,8 @@ import java.util.*
 
 /**
  * Created by slash on 2/6/17.
+ *
+ * Fetches and displays the details for every article
  */
 
 class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>) : RecyclerView.Adapter<ArticleListAdapter.ViewHolder>() {
@@ -39,15 +40,11 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
 
         init {
             itemView.setOnClickListener {
-
                 val article = articles[adapterPosition]
                 if (article.hasFullData && article.url != "") {
-
-//                    var dimens = IntArray(2)
-//                    getLocationInWindow(dimens)
                     val height = itemView.height - context.resources.getDimension(R.dimen.list_separator_height)
                     val coords = arrayOf(itemView.y, itemView.y + height)
-                        context.showDetail(article.id, article.url, coords)
+                    context.showDetail(article.id, article.url, coords)
                 }
             }
         }
@@ -90,6 +87,7 @@ class ArticleListAdapter(val context: MainActivity, val articles: Array<Article>
                 }
 
                 private fun parseToArticle(response: String) {
+                    println("RESPONSE: " + response)
                     val builder = GsonBuilder()
                     builder.registerTypeAdapter(Article::class.java, ArticleDeserializer())
                     val gson = builder.create()

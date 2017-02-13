@@ -6,22 +6,24 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.support.v4.content.ContextCompat
 import net.gorceag.hnreader.R
-import net.gorceag.kotlinblade.ChartFragmentAnimator
 
 /**
  * Created by slash on 2/12/17.
+ *
+ * Is created based on a ChartModel and the dimensions of the canvas
+ * Used by the ChartFragmentAnimator to store the dimensions and parameters of the chart
  */
 
-class ChartDrawModel(val canvasWidth: Int, val canvasHeight: Int, val model: ChartModel, val context: Context) {
+class ChartDrawModel(canvasWidth: Int, canvasHeight: Int, val model: ChartModel, val context: Context) {
 
     inner class ScaleNumberData(val value: String, val textX: Float, val textY: Float, val lineXStart: Float, val lineYStart: Float, val lineXEnd: Float, val lineYEnd: Float)
 
-    val padding: Float = context.resources.getDimension(R.dimen.padding)
-    val textToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
-    val textSize = context.resources.getDimension(R.dimen.text_size)
-    val maxNumberDistance = context.resources.getDimension(R.dimen.max_number_distance)
-    val distanceToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
-    val columnPadding = context.resources.getDimension(R.dimen.column_padding)
+    private val padding: Float = context.resources.getDimension(R.dimen.padding)
+    private val textToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
+    private val textSize = context.resources.getDimension(R.dimen.text_size)
+    private val maxNumberDistance = context.resources.getDimension(R.dimen.max_number_distance)
+    private val distanceToLine = context.resources.getDimension(R.dimen.text_to_line_margin)
+    private val columnPadding = context.resources.getDimension(R.dimen.column_padding)
 
     lateinit private var vNumbers: Array<String>
     private var maxNumberLength: Float = 0f
@@ -37,7 +39,7 @@ class ChartDrawModel(val canvasWidth: Int, val canvasHeight: Int, val model: Cha
 
     init {
         paint.textSize = textSize
-        buildVerticalNumbers()
+        buildVerticalNumbers(canvasHeight)
         vScaleData = buildVScale(canvasHeight)
         hScaleData = buildHScale(canvasWidth, canvasHeight)
         barsRect = buildBars(canvasWidth, canvasHeight)
@@ -45,8 +47,8 @@ class ChartDrawModel(val canvasWidth: Int, val canvasHeight: Int, val model: Cha
         pillars = buildPillarBitmaps(canvasWidth)
     }
 
-    private fun buildVerticalNumbers() {
-        vNumbers = getScaleNumbers(canvasHeight, Array(model.data.size, { i -> model.data[i][0] }).max() ?: 0)
+    private fun buildVerticalNumbers(height: Int) {
+        vNumbers = getScaleNumbers(height, Array(model.data.size, { i -> model.data[i][0] }).max() ?: 0)
         maxNumberLength = Array(vNumbers.size, { i -> paint.measureText(vNumbers[i]) }).max() ?: 0f
         spacesCount = vNumbers.size - 1
         bottomMargin = padding + textSize + textToLine

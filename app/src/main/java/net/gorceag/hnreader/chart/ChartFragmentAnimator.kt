@@ -1,46 +1,43 @@
-package net.gorceag.kotlinblade
+package net.gorceag.hnreader.chart
 
-import android.app.Activity
 import android.content.Context
 import android.graphics.*
-import android.os.Handler
-import android.os.Looper
 import android.support.v4.content.ContextCompat
 import android.util.TypedValue
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
+import net.gorceag.hnreader.AnimationDrawer
 import net.gorceag.hnreader.AnimatorCallback
 import net.gorceag.hnreader.R
-import net.gorceag.hnreader.chart.ChartFragment
 import net.gorceag.hnreader.model.ChartDrawModel
 import net.gorceag.hnreader.model.ChartModel
-import java.lang.reflect.Type
-import java.util.*
-import java.util.concurrent.*
 
 /**
  * Created by slash on 2/5/17.
+ *
+ * As a SurfaceView the class provides it's SurfaceHolder to the hosted AnimationDrawer
  */
-class ChartFragmentAnimator(val fragment: AnimatorCallback, activity: Context, val model: ChartModel, val backgroundImage: Bitmap) : SurfaceView(activity), SurfaceHolder.Callback {
 
-    inner class Drawer(val holder: SurfaceHolder, val context: Context) : Thread() {
-        var animationState = 1
+class ChartFragmentAnimator(callback: AnimatorCallback, activity: Context, backgroundImage: Bitmap, model: ChartModel) : SurfaceView(activity), SurfaceHolder.Callback {
 
-        private lateinit var paint: Paint
+    inner class Drawer(holder: SurfaceHolder, context: Context, callback: AnimatorCallback, val backgroundImage: Bitmap, val model: ChartModel) : AnimationDrawer(holder, context, callback) {
+
+        private val weight: Float
         lateinit var chartDrawModel: ChartDrawModel
-        private var isRunning = false
-        private var progress = 0f
 
         private val accelerator = AccelerateInterpolator(2f)
         private val decelerator = DecelerateInterpolator(2f)
 
         init {
-            holder.setFormat(PixelFormat.TRANSPARENT);
+            holder.setFormat(PixelFormat.TRANSPARENT)
             setPaint()
             paint.textSize = context.resources.getDimension(R.dimen.text_size)
             paint.strokeWidth = context.resources.getDimension(R.dimen.line_width)
+            val out: TypedValue = TypedValue()
+            context.resources.getValue(R.dimen.expand_bubble_weight, out, true)
+            weight = out.float
         }
 
         private fun setPaint() {
@@ -50,9 +47,12 @@ class ChartFragmentAnimator(val fragment: AnimatorCallback, activity: Context, v
             paint.style = Paint.Style.FILL
         }
 
+        fun buildDrawModel(width: Int, height: Int) {
+            chartDrawModel = ChartDrawModel(width, height, model, context)
+        }
 
-        private fun updateProgress(delta: Long) {
-            when (animationState) {
+        override fun updateProgress(delta: Long) {
+            when (state) {
                 1, 2, 3, 5, 6, 7 -> progress += (delta.toFloat() / avgAnimationStepTime)
             }
             if (progress >= 1) {
@@ -60,68 +60,18 @@ class ChartFragmentAnimator(val fragment: AnimatorCallback, activity: Context, v
             }
         }
 
-        fun updateState() {
+        override fun updateState() {
             progress = 0f
-            when (animationState) {
+            when (state) {
                 3 -> sendIdleMessage()
                 7 -> terminateParent()
             }
-            animationState++
+            state++
         }
 
-
-        private fun sendIdleMessage() {
-            val handler = Handler(context.mainLooper)
-            handler.post { fragment.initiated() }
-        }
-
-        private fun terminateParent() {
-            val handler = Handler(context.mainLooper)
-            handler.post { fragment.terminated() }
-        }
-
-        private fun showFps(delta: Long) {
-            val cores = Runtime.getRuntime().availableProcessors()
-            println("NUMBER OF CORES: " + cores)
-            if (delta != 0L) {
-                val actualFps = 1000L / delta
-                println("FPS: " + actualFps)
-            }
-        }
-
-        private fun manageWait(startTime: Long) {
-            val endTime = System.currentTimeMillis()
-            val wait = mSec - (endTime - startTime)
-            if (wait > 0) {
-                Thread.sleep(wait)
-            }
-        }
-
-        override fun run() {
-            var oldStartTime = System.currentTimeMillis()
-            while (isRunning) {
-                val startTime = System.currentTimeMillis()
-                val delta = startTime - oldStartTime
-                oldStartTime = startTime
-//                showFps(delta)
-                updateProgress(delta)
-                updateView()
-                manageWait(startTime)
-            }
-        }
-
-
-        private fun updateView() {
-            val canvas = holder.lockCanvas()
-            if (canvas != null) {
-                drawChoreography(canvas)
-                holder.unlockCanvasAndPost(canvas)
-            }
-        }
-
-        private fun drawChoreography(canvas: Canvas) {
+        override fun drawChoreography(canvas: Canvas) {
             canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-            when (animationState) {
+            when (state) {
                 1 -> drawBackground(canvas, accelerator.getInterpolation(progress))
                 2 -> drawEmptyChart(canvas, progress)
                 3 -> drawFilledChart(canvas, decelerator.getInterpolation(progress))
@@ -237,35 +187,16 @@ class ChartFragmentAnimator(val fragment: AnimatorCallback, activity: Context, v
             paint.color = ContextCompat.getColor(context, R.color.neutral)
             canvas.drawRect(0f, canvas.height - yOffset, canvas.width.toFloat(), canvas.height.toFloat(), paint)
         }
-
-        fun initiate() {
-            isRunning = true
-            start()
-        }
-
-        fun terminate() {
-            isRunning = false
-        }
-
     }
 
-    val fps: Int = context.resources.getInteger(R.integer.fps)
-    val avgAnimationStepTime = context.resources.getInteger(R.integer.avg_animation_step_time)
-
-    val weight: Float
-    val mSec: Long = (1000f / fps).toLong()
-    var drawer: Drawer = Drawer(holder, activity)
+    var drawer: Drawer = Drawer(holder, activity, callback, backgroundImage, model)
 
     init {
-        val out: TypedValue = TypedValue()
-        context.resources.getValue(R.dimen.expand_bubble_weight, out, true)
-        weight = out.float
         holder.addCallback(this)
-
     }
 
     fun roundUp() {
-        if (drawer.animationState == 4) {
+        if (drawer.state == 4) {
             drawer.updateState()
         }
     }
@@ -283,7 +214,7 @@ class ChartFragmentAnimator(val fragment: AnimatorCallback, activity: Context, v
     }
 
     override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
-        drawer.chartDrawModel = ChartDrawModel(width, height, model, context)
+        drawer.buildDrawModel(width, height)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder?) {

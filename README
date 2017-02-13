@@ -1,0 +1,10 @@
+ABOUT:
+
+- The visited links are marked gray.
+- The favorite links are marked green.
+- A link can be marked and unmarked as favorite via the menu in the top right while in the web page screen 
+- A link is marked as visited after a click in the list.
+- Favorites and visited can be cleaned from the menu in the top right while in the list screen
+- The chart can be accessed from the menu in the top right while in the list screen
+- The chart is not connected to the articles and displays random data every time.
+This is done to show the display possibilities of the chart.
